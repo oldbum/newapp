@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
@@ -7,16 +6,18 @@ import 'package:timezone/data/latest.dart' as tz;
 class Habit {
   String name;
   bool isCompleted;
+  DateTime? completedDate;
 
-  Habit({required this.name, this.isCompleted = false});
+  Habit({required this.name, this.isCompleted = false, this.completedDate});
 }
 
 class Goal {
   String name;
   DateTime deadline;
   bool isCompleted;
+  DateTime? completedDate;
 
-  Goal({required this.name, required this.deadline, this.isCompleted = false});
+  Goal({required this.name, required this.deadline, this.isCompleted = false, this.completedDate});
 }
 
 class Reflection {
@@ -36,24 +37,34 @@ class SelfCarePage extends StatefulWidget {
 class _SelfCarePageState extends State<SelfCarePage> {
   final List<Habit> _habits = [];
   final List<Goal> _goals = [];
+  final List<Habit> _habitHistory = [];
+  final List<Goal> _goalHistory = [];
   final List<Reflection> _reflections = [];
-  final List<String> _moods = ['Happy', 'Sad', 'Neutral', 'Excited', 'Stressed'];
-  String? _selectedMood;
-  DateTime? _moodDate;
-
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
     super.initState();
     tz.initializeTimeZones();
-    _initializeNotifications();
+    _scheduleDailyReset();
   }
 
-  Future<void> _initializeNotifications() async {
-    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  void _scheduleDailyReset() {
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final duration = tomorrow.difference(now);
+
+    Future.delayed(duration, () {
+      setState(() {
+        for (var habit in _habits) {
+          if (habit.isCompleted) {
+            habit.completedDate = DateTime.now();
+            _habitHistory.add(habit);
+          }
+          habit.isCompleted = false;
+        }
+      });
+      _scheduleDailyReset();
+    });
   }
 
   void _addHabit() {
@@ -90,9 +101,53 @@ class _SelfCarePageState extends State<SelfCarePage> {
     );
   }
 
+  void _editHabit(Habit habit) {
+    final TextEditingController nameController = TextEditingController(text: habit.name);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Edit Habit'),
+          content: TextField(
+            controller: nameController,
+            decoration: const InputDecoration(labelText: 'Habit Name'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Save'),
+              onPressed: () {
+                if (nameController.text.isNotEmpty) {
+                  setState(() {
+                    habit.name = nameController.text;
+                  });
+                  Navigator.of(context).pop();
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _deleteHabit(Habit habit) {
+    setState(() {
+      _habits.remove(habit);
+    });
+  }
+
   void _toggleHabitCompletion(Habit habit) {
     setState(() {
       habit.isCompleted = !habit.isCompleted;
+      if (habit.isCompleted) {
+        habit.completedDate = DateTime.now();
+        _habitHistory.add(habit);
+      }
     });
   }
 
@@ -157,9 +212,82 @@ class _SelfCarePageState extends State<SelfCarePage> {
     );
   }
 
+  void _editGoal(Goal goal) {
+    final TextEditingController nameController = TextEditingController(text: goal.name);
+    DateTime deadline = goal.deadline;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Edit Goal'),
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return SingleChildScrollView(
+                child: Column(
+                  children: <Widget>[
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(labelText: 'Goal Name'),
+                    ),
+                    ListTile(
+                      title: Text('Deadline: ${DateFormat('yMMMd').format(deadline)}'),
+                      onTap: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: deadline,
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2101),
+                        );
+                        if (picked != null && picked != deadline) {
+                          setState(() {
+                            deadline = picked;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Save'),
+              onPressed: () {
+                if (nameController.text.isNotEmpty) {
+                  setState(() {
+                    goal.name = nameController.text;
+                    goal.deadline = deadline;
+                  });
+                  Navigator.of(context).pop();
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _deleteGoal(Goal goal) {
+    setState(() {
+      _goals.remove(goal);
+    });
+  }
+
   void _toggleGoalCompletion(Goal goal) {
     setState(() {
       goal.isCompleted = !goal.isCompleted;
+      if (goal.isCompleted) {
+        goal.completedDate = DateTime.now();
+        _goalHistory.add(goal);
+        _goals.remove(goal);
+      }
     });
   }
 
@@ -198,50 +326,18 @@ class _SelfCarePageState extends State<SelfCarePage> {
     );
   }
 
-  void _addMood() {
+  void _editReflection(Reflection reflection) {
+    final TextEditingController contentController = TextEditingController(text: reflection.content);
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Record Mood'),
-          content: StatefulBuilder(
-            builder: (BuildContext context, StateSetter setState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  DropdownButton<String>(
-                    value: _selectedMood,
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedMood = newValue;
-                      });
-                    },
-                    items: _moods.map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                  ),
-                  ListTile(
-                    title: Text('Select Date: ${_moodDate != null ? DateFormat('yMMMd').format(_moodDate!) : 'Not set'}'),
-                    onTap: () async {
-                      final DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: _moodDate ?? DateTime.now(),
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2101),
-                      );
-                      if (picked != null && picked != _moodDate) {
-                        setState(() {
-                          _moodDate = picked;
-                        });
-                      }
-                    },
-                  ),
-                ],
-              );
-            },
+          title: const Text('Edit Reflection'),
+          content: TextField(
+            controller: contentController,
+            decoration: const InputDecoration(labelText: 'Reflection'),
+            maxLines: 5,
           ),
           actions: <Widget>[
             TextButton(
@@ -249,10 +345,12 @@ class _SelfCarePageState extends State<SelfCarePage> {
               onPressed: () => Navigator.of(context).pop(),
             ),
             TextButton(
-              child: const Text('Add'),
+              child: const Text('Save'),
               onPressed: () {
-                if (_selectedMood != null && _moodDate != null) {
-                  // Store mood information
+                if (contentController.text.isNotEmpty) {
+                  setState(() {
+                    reflection.content = contentController.text;
+                  });
                   Navigator.of(context).pop();
                 }
               },
@@ -263,6 +361,51 @@ class _SelfCarePageState extends State<SelfCarePage> {
     );
   }
 
+  void _deleteReflection(Reflection reflection) {
+    setState(() {
+      _reflections.remove(reflection);
+    });
+  }
+
+  void _showMindfulnessExercises() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Mindfulness Exercises'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: const [
+                ListTile(
+                  title: Text('Guided Meditation'),
+                  subtitle: Text('A 10-minute guided meditation to help you relax and focus.'),
+                ),
+                ListTile(
+                  title: Text('Breathing Exercise'),
+                  subtitle: Text('1. Breathe in through your nose           2. Place your hands on your stomach to feel your belly rise                              3. Breathe out through your mouth for two to three times longer than you inhale                                                            4. Relax your shoulders and neck'),
+                ),
+                ListTile(
+                  title: Text('Body Scan'),
+                  subtitle: Text('A 15-minute body scan to release tension and improve awareness.'),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Close'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _navigateToHistoryPage() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (context) => HistoryPage(_habitHistory, _goalHistory)));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -270,8 +413,12 @@ class _SelfCarePageState extends State<SelfCarePage> {
         title: const Text('Self Care'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _addMood,
+            icon: const Icon(Icons.history),
+            onPressed: _navigateToHistoryPage,
+          ),
+          IconButton(
+            icon: const Icon(Icons.self_improvement),
+            onPressed: _showMindfulnessExercises,
           ),
         ],
       ),
@@ -282,12 +429,27 @@ class _SelfCarePageState extends State<SelfCarePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               const Text('Daily Habits', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ..._habits.map((habit) => CheckboxListTile(
+              ..._habits.map((habit) => ListTile(
                     title: Text(habit.name),
-                    value: habit.isCompleted,
-                    onChanged: (bool? value) {
-                      _toggleHabitCompletion(habit);
-                    },
+                    leading: Checkbox(
+                      value: habit.isCompleted,
+                      onChanged: (bool? value) {
+                        _toggleHabitCompletion(habit);
+                      },
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => _editHabit(habit),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () => _deleteHabit(habit),
+                        ),
+                      ],
+                    ),
                   )),
               Center(
                 child: ElevatedButton(
@@ -297,13 +459,28 @@ class _SelfCarePageState extends State<SelfCarePage> {
               ),
               const SizedBox(height: 20),
               const Text('Goals', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ..._goals.map((goal) => CheckboxListTile(
+              ..._goals.map((goal) => ListTile(
                     title: Text(goal.name),
                     subtitle: Text('Deadline: ${DateFormat('yMMMd').format(goal.deadline)}'),
-                    value: goal.isCompleted,
-                    onChanged: (bool? value) {
-                      _toggleGoalCompletion(goal);
-                    },
+                    leading: Checkbox(
+                      value: goal.isCompleted,
+                      onChanged: (bool? value) {
+                        _toggleGoalCompletion(goal);
+                      },
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => _editGoal(goal),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () => _deleteGoal(goal),
+                        ),
+                      ],
+                    ),
                   )),
               Center(
                 child: ElevatedButton(
@@ -316,6 +493,19 @@ class _SelfCarePageState extends State<SelfCarePage> {
               ..._reflections.map((reflection) => ListTile(
                     title: Text(DateFormat('yMMMd').format(reflection.date)),
                     subtitle: Text(reflection.content),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => _editReflection(reflection),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () => _deleteReflection(reflection),
+                        ),
+                      ],
+                    ),
                   )),
               Center(
                 child: ElevatedButton(
@@ -323,6 +513,43 @@ class _SelfCarePageState extends State<SelfCarePage> {
                   child: const Text('Add Reflection'),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class HistoryPage extends StatelessWidget {
+  final List<Habit> habitHistory;
+  final List<Goal> goalHistory;
+
+  const HistoryPage(this.habitHistory, this.goalHistory, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('History'),
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text('Habit History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ...habitHistory.map((habit) => ListTile(
+                    title: Text(habit.name),
+                    subtitle: Text('Completed on: ${DateFormat('yMMMd').format(habit.completedDate!)}'),
+                  )),
+              const SizedBox(height: 20),
+              const Text('Goal History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ...goalHistory.map((goal) => ListTile(
+                    title: Text(goal.name),
+                    subtitle: Text('Completed on: ${DateFormat('yMMMd').format(goal.completedDate!)}'),
+                  )),
             ],
           ),
         ),

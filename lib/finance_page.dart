@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:url_launcher/url_launcher.dart';
-import 'main.dart'; // Adjust this import based on your project structure
 
 class Bill {
   String name;
@@ -30,11 +30,11 @@ class Bill {
     required this.category,
   });
 }
+
 class FinancePage extends StatefulWidget {
   const FinancePage({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _FinancePageState createState() => _FinancePageState();
 }
 
@@ -56,9 +56,12 @@ class _FinancePageState extends State<FinancePage> {
     List<Bill> sortedBills = [..._bills];
     sortedBills.sort((a, b) => _sortBills(a, b, _sortOption));
 
+    List<Bill> upcomingBills = sortedBills.where((bill) => !bill.isPaid).toList();
+    List<Bill> paidBills = sortedBills.where((bill) => bill.isPaid).toList();
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Finance'),
+        title: const Text('Finance', style: TextStyle(fontFamily: 'Montserrat')),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
@@ -96,24 +99,96 @@ class _FinancePageState extends State<FinancePage> {
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: sortedBills.length,
-        itemBuilder: (context, index) => buildBillCard(sortedBills[index]),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Budget Overview',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
+            ),
+            const SizedBox(height: 20),
+            _buildBudgetChart(),
+            const SizedBox(height: 20),
+            const Text(
+              'Upcoming Bills',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView.builder(
+                itemCount: upcomingBills.length,
+                itemBuilder: (context, index) => buildBillCard(upcomingBills[index]),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Paid Bills',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView.builder(
+                itemCount: paidBills.length,
+                itemBuilder: (context, index) => buildBillCard(paidBills[index]),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget buildBillCard(Bill bill) {
+    IconData icon;
+    Color color;
+
+    switch (bill.category) {
+      case 'Utilities':
+        icon = Icons.lightbulb;
+        color = Colors.blue;
+        break;
+      case 'Services':
+        icon = Icons.build;
+        color = Colors.orange;
+        break;
+      case 'Rent':
+        icon = Icons.home;
+        color = Colors.green;
+        break;
+      case 'Subscription':
+        icon = Icons.subscriptions;
+        color = Colors.purple;
+        break;
+      case 'Other':
+      default:
+        icon = Icons.attach_money;
+        color = Colors.grey;
+        break;
+    }
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-      color: bill.isPaid ? Colors.green[100] : Colors.red[100],
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      elevation: 5,
       child: ListTile(
-        title: Text('${bill.name} - \$${bill.amount.toStringAsFixed(2)}'),
+        leading: CircleAvatar(
+          backgroundColor: color,
+          child: Icon(icon, color: Colors.white),
+        ),
+        title: Text(
+          '${bill.name} - \$${bill.amount.toStringAsFixed(2)}',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Due: ${DateFormat('yMMMd').format(bill.dueDate)}'),
-            Text('Category: ${bill.category}'), // Display the category
+            Text('Category: ${bill.category}'),
             Text('Payment Method: ${bill.paymentMethod}'),
             InkWell(
               child: Text('Billing Portal: ${bill.billingPortalLink}', style: const TextStyle(color: Colors.blue)),
@@ -123,6 +198,7 @@ class _FinancePageState extends State<FinancePage> {
         ),
         trailing: IconButton(
           icon: Icon(bill.isPaid ? Icons.check_circle : Icons.circle_outlined),
+          color: bill.isPaid ? Colors.green : Colors.red,
           onPressed: () {
             setState(() {
               bill.isPaid = !bill.isPaid;
@@ -136,17 +212,91 @@ class _FinancePageState extends State<FinancePage> {
     );
   }
 
+  Widget _buildBudgetChart() {
+    Map<String, double> categoryExpenses = {};
+
+    for (var bill in _bills) {
+      if (categoryExpenses.containsKey(bill.category)) {
+        categoryExpenses[bill.category] = categoryExpenses[bill.category]! + bill.amount;
+      } else {
+        categoryExpenses[bill.category] = bill.amount;
+      }
+    }
+
+    List<PieChartSectionData> sections = categoryExpenses.entries.map((entry) {
+      Color color;
+
+      switch (entry.key) {
+        case 'Utilities':
+          color = Colors.blue;
+          break;
+        case 'Services':
+          color = Colors.orange;
+          break;
+        case 'Rent':
+          color = Colors.green;
+          break;
+        case 'Subscription':
+          color = Colors.purple;
+          break;
+        case 'Other':
+        default:
+          color = Colors.grey;
+          break;
+      }
+
+      return PieChartSectionData(
+        color: color,
+        value: entry.value,
+        title: '${entry.key} - \$${entry.value.toStringAsFixed(2)}',
+        radius: 50,
+        titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+      );
+    }).toList();
+
+    return AspectRatio(
+      aspectRatio: 1.3,
+      child: Card(
+        elevation: 5,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        color: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            children: [
+              const Text(
+                'Spending by Category',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: PieChart(
+                  PieChartData(
+                    sections: sections,
+                    sectionsSpace: 0,
+                    centerSpaceRadius: 40,
+                    borderData: FlBorderData(show: false),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showFilterDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Filter and Sort Bills'),
+          title: const Text('Filter and Sort Bills', style: TextStyle(fontFamily: 'Montserrat')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                title: const Text('Sort by Name'),
+                title: const Text('Sort by Name', style: TextStyle(fontFamily: 'Montserrat')),
                 leading: Radio(
                   value: SortOption.name,
                   groupValue: _sortOption,
@@ -159,7 +309,7 @@ class _FinancePageState extends State<FinancePage> {
                 ),
               ),
               ListTile(
-                title: const Text('Amount Ascending'),
+                title: const Text('Amount Ascending', style: TextStyle(fontFamily: 'Montserrat')),
                 leading: Radio(
                   value: SortOption.amountAscending,
                   groupValue: _sortOption,
@@ -172,7 +322,7 @@ class _FinancePageState extends State<FinancePage> {
                 ),
               ),
               ListTile(
-                title: const Text('Amount Descending'),
+                title: const Text('Amount Descending', style: TextStyle(fontFamily: 'Montserrat')),
                 leading: Radio(
                   value: SortOption.amountDescending,
                   groupValue: _sortOption,
@@ -185,7 +335,7 @@ class _FinancePageState extends State<FinancePage> {
                 ),
               ),
               ListTile(
-                title: const Text('Due Date Soonest'),
+                title: const Text('Due Date Soonest', style: TextStyle(fontFamily: 'Montserrat')),
                 leading: Radio(
                   value: SortOption.dueDateSoonest,
                   groupValue: _sortOption,
@@ -198,7 +348,7 @@ class _FinancePageState extends State<FinancePage> {
                 ),
               ),
               ListTile(
-                title: const Text('Due Date Latest'),
+                title: const Text('Due Date Latest', style: TextStyle(fontFamily: 'Montserrat')),
                 leading: Radio(
                   value: SortOption.dueDateLatest,
                   groupValue: _sortOption,
@@ -215,7 +365,7 @@ class _FinancePageState extends State<FinancePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+              child: const Text('Close', style: TextStyle(fontFamily: 'Montserrat')),
             ),
           ],
         );
@@ -255,7 +405,7 @@ class _FinancePageState extends State<FinancePage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Add New Bill'),
+          title: const Text('Add New Bill', style: TextStyle(fontFamily: 'Montserrat')),
           content: StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) {
               return SingleChildScrollView(
@@ -341,7 +491,7 @@ class _FinancePageState extends State<FinancePage> {
                     ),
                     Text(
                       'Notify me ${_notificationDays.round()} days before due date',
-                      style: const TextStyle(fontSize: 16),
+                      style: const TextStyle(fontSize: 16, fontFamily: 'Montserrat'),
                     ),
                   ],
                 ),
@@ -350,11 +500,11 @@ class _FinancePageState extends State<FinancePage> {
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(fontFamily: 'Montserrat')),
               onPressed: () => Navigator.of(context).pop(),
             ),
             TextButton(
-              child: const Text('Add'),
+              child: const Text('Add', style: TextStyle(fontFamily: 'Montserrat')),
               onPressed: () {
                 final double? amount = double.tryParse(amountController.text);
                 if (amount != null && nameController.text.isNotEmpty && paymentMethodController.text.isNotEmpty) {
@@ -412,9 +562,7 @@ class _FinancePageState extends State<FinancePage> {
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time,
       );
-    // ignore: empty_catches
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 }
 
@@ -431,7 +579,7 @@ class PaymentHistoryPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Payment History'),
+        title: const Text('Payment History', style: TextStyle(fontFamily: 'Montserrat')),
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
@@ -454,7 +602,7 @@ class PaymentHistoryPage extends StatelessWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Sort Payments'),
+          title: const Text('Sort Payments', style: TextStyle(fontFamily: 'Montserrat')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -468,7 +616,7 @@ class PaymentHistoryPage extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+              child: const Text('Close', style: TextStyle(fontFamily: 'Montserrat')),
             ),
           ],
         );
@@ -478,7 +626,7 @@ class PaymentHistoryPage extends StatelessWidget {
 
   Widget _buildRadioListTile(BuildContext context, String title, SortOption value) {
     return RadioListTile<SortOption>(
-      title: Text(title),
+      title: Text(title, style: const TextStyle(fontFamily: 'Montserrat')),
       value: value,
       groupValue: sortOption,
       onChanged: (SortOption? value) {
@@ -507,8 +655,6 @@ class PaymentHistoryPage extends StatelessWidget {
   }
 }
 
-
-
 // Notification Management Page
 class NotificationsPage extends StatelessWidget {
   final List<Bill> bills;
@@ -519,7 +665,7 @@ class NotificationsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Notifications'),
+        title: const Text('Manage Notifications', style: TextStyle(fontFamily: 'Montserrat')),
       ),
       body: ListView.builder(
         itemCount: bills.length,
@@ -584,7 +730,7 @@ class AnalyticsPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Analytics'),
+        title: const Text('Analytics', style: TextStyle(fontFamily: 'Montserrat')),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -593,7 +739,7 @@ class AnalyticsPage extends StatelessWidget {
           children: [
             const Text(
               'Monthly Expenses',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
             ),
             ...monthlyExpenses.entries.map((entry) => ListTile(
               title: Text(entry.key),
@@ -602,7 +748,7 @@ class AnalyticsPage extends StatelessWidget {
             const Divider(),
             const Text(
               'Category Expenses',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
             ),
             ...categoryExpenses.entries.map((entry) => ListTile(
               title: Text(entry.key),
@@ -614,10 +760,15 @@ class AnalyticsPage extends StatelessWidget {
     );
   }
 }
+
 enum SortOption {
   name,
   amountAscending,
   amountDescending,
   dueDateSoonest,
   dueDateLatest,
+}
+
+int generateNotificationId() {
+  return DateTime.now().millisecondsSinceEpoch.remainder(100000);
 }
