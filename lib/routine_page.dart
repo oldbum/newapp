@@ -1,8 +1,13 @@
+// ignore_for_file: library_private_types_in_public_api, unused_element
+
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:intl/intl.dart';
+import 'package:new_app/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'main.dart'; // Adjust this import based on your project structure
 
 class RoutineTask {
   String name;
@@ -24,6 +29,32 @@ class RoutineTask {
     this.priority = 1,
     required this.notificationId,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'isCompleted': isCompleted,
+      'completedAt': completedAt?.toIso8601String(),
+      'recurrence': recurrence,
+      'icon': icon.codePoint,
+      'notes': notes,
+      'priority': priority,
+      'notificationId': notificationId,
+    };
+  }
+
+  factory RoutineTask.fromJson(Map<String, dynamic> json) {
+    return RoutineTask(
+      name: json['name'],
+      isCompleted: json['isCompleted'],
+      completedAt: json['completedAt'] != null ? DateTime.parse(json['completedAt']) : null,
+      recurrence: json['recurrence'],
+      icon: IconData(json['icon'], fontFamily: 'MaterialIcons'),
+      notes: json['notes'],
+      priority: json['priority'],
+      notificationId: json['notificationId'],
+    );
+  }
 }
 
 class RoutinePage extends StatefulWidget {
@@ -42,6 +73,7 @@ class _RoutinePageState extends State<RoutinePage> {
     super.initState();
     _initializeNotifications();
     _requestPermissions();
+    _loadTasks();
   }
 
   Future<void> _initializeNotifications() async {
@@ -53,10 +85,26 @@ class _RoutinePageState extends State<RoutinePage> {
     );
 
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    tz.initializeTimeZones(); // Initialize timezone data
   }
 
   Future<void> _requestPermissions() async {
     await requestExactAlarmPermission();
+  }
+
+  Future<void> _loadTasks() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> tasksJson = prefs.getStringList('tasks') ?? [];
+    setState(() {
+      _tasks.clear();
+      _tasks.addAll(tasksJson.map((jsonString) => RoutineTask.fromJson(json.decode(jsonString))).toList());
+    });
+  }
+
+  Future<void> _saveTasks() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> tasksJson = _tasks.map((task) => json.encode(task.toJson())).toList();
+    await prefs.setStringList('tasks', tasksJson);
   }
 
   void _addTask() {
@@ -162,6 +210,7 @@ class _RoutinePageState extends State<RoutinePage> {
                     _tasks.add(newTask);
                   });
                   _scheduleNotification(newTask);
+                  _saveTasks();
                   Navigator.of(context).pop();
                 }
               },
@@ -268,6 +317,7 @@ class _RoutinePageState extends State<RoutinePage> {
                   task.icon = selectedIcon;
                   task.priority = priority;
                 });
+                _saveTasks();
                 Navigator.of(context).pop();
               },
             ),
@@ -282,6 +332,7 @@ class _RoutinePageState extends State<RoutinePage> {
       task.isCompleted = !task.isCompleted;
       task.completedAt = task.isCompleted ? DateTime.now() : null;
     });
+    _saveTasks();
   }
 
   void _scheduleNotification(RoutineTask task) async {
@@ -313,6 +364,7 @@ class _RoutinePageState extends State<RoutinePage> {
       task.isCompleted = false;
       task.completedAt = null;
     });
+    _saveTasks();
   }
 
   @override
@@ -343,7 +395,7 @@ class _RoutinePageState extends State<RoutinePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Priority: ${task.priority == 1 ? 'Low' : task.priority == 2 ? 'Medium' : 'High'}'),
-                  if (task.notes.isNotEmpty) Text('Notes: ${task.notes}'),
+                  if (task.notes.isNotEmpty) Text(task.notes),
                 ],
               ),
               trailing: Row(
@@ -398,7 +450,7 @@ class RoutineHistoryPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Completed at: ${DateFormat('yMMMd').format(task.completedAt!)} ${DateFormat('jm').format(task.completedAt!)}'),
-                  if (task.notes.isNotEmpty) Text('Notes: ${task.notes}'),
+                  if (task.notes.isNotEmpty) Text(task.notes),
                 ],
               ),
             ),

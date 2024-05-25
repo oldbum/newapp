@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intro_slider/intro_slider.dart';
 
 class OnboardingScreen extends StatefulWidget {
+  const OnboardingScreen({super.key});
+
   @override
+  // ignore: library_private_types_in_public_api
   _OnboardingScreenState createState() => _OnboardingScreenState();
 }
 
@@ -20,7 +23,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           height: 200,
           width: double.infinity,
           color: Colors.blueAccent,
-          child: Center(
+          child: const Center(
             child: Text(
               'Welcome',
               style: TextStyle(color: Colors.white, fontSize: 24),
@@ -38,7 +41,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           height: 200,
           width: double.infinity,
           color: Colors.greenAccent,
-          child: Center(
+          child: const Center(
             child: Text(
               'Track Tasks',
               style: TextStyle(color: Colors.white, fontSize: 24),
@@ -56,7 +59,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           height: 200,
           width: double.infinity,
           color: Colors.orangeAccent,
-          child: Center(
+          child: const Center(
             child: Text(
               'Manage Groceries',
               style: TextStyle(color: Colors.white, fontSize: 24),
@@ -74,7 +77,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           height: 200,
           width: double.infinity,
           color: Colors.purpleAccent,
-          child: Center(
+          child: const Center(
             child: Text(
               'Get Started',
               style: TextStyle(color: Colors.white, fontSize: 24),

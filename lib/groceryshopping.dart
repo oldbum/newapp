@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:new_app/main.dart';
 import 'package:timezone/timezone.dart' as tz;
-import 'package:reorderables/reorderables.dart';
 
 class GroceryItem {
   String name;
@@ -31,6 +29,7 @@ class GroceryPage extends StatefulWidget {
   const GroceryPage({super.key, required List initialItems});
 
   @override
+  // ignore: library_private_types_in_public_api
   _GroceryPageState createState() => _GroceryPageState();
 }
 
@@ -97,7 +96,7 @@ class _GroceryPageState extends State<GroceryPage> {
                             keyboardType: TextInputType.number,
                           ),
                         ),
-                        SizedBox(width: 10),
+                        const SizedBox(width: 10),
                         Expanded(
                           flex: 1,
                           child: DropdownButton<String>(
@@ -208,7 +207,7 @@ class _GroceryPageState extends State<GroceryPage> {
                             keyboardType: TextInputType.number,
                           ),
                         ),
-                        SizedBox(width: 10),
+                        const SizedBox(width: 10),
                         Expanded(
                           flex: 1,
                           child: DropdownButton<String>(
@@ -538,7 +537,7 @@ class NotepadPainter extends CustomPainter {
       canvas.drawLine(Offset(leftMargin, y), Offset(size.width, y), linePaint);
     }
 
-    canvas.drawLine(Offset(leftMargin, 0), Offset(leftMargin, size.height), redLinePaint);
+    canvas.drawLine(const Offset(leftMargin, 0), Offset(leftMargin, size.height), redLinePaint);
   }
 
   @override
@@ -548,7 +547,7 @@ class NotepadPainter extends CustomPainter {
 }
 
 void main() => runApp(MaterialApp(
-  home: GroceryPage(initialItems: [],),
+  home: const GroceryPage(initialItems: [],),
   theme: ThemeData(
     primarySwatch: Colors.purple,
     fontFamily: 'Shadows Into Light',

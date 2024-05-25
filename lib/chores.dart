@@ -24,6 +24,7 @@ class ChoresPage extends StatefulWidget {
   const ChoresPage({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _ChoresPageState createState() => _ChoresPageState();
 }
 

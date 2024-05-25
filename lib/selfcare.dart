@@ -1,3 +1,5 @@
+// ignore_for_file: library_private_types_in_public_api
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -372,9 +374,9 @@ class _SelfCarePageState extends State<SelfCarePage> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Mindfulness Exercises'),
-          content: SingleChildScrollView(
+          content: const SingleChildScrollView(
             child: Column(
-              children: const [
+              children: [
                 ListTile(
                   title: Text('Guided Meditation'),
                   subtitle: Text('A 10-minute guided meditation to help you relax and focus.'),

@@ -29,6 +29,7 @@ class HomeImprovementsPage extends StatefulWidget {
   const HomeImprovementsPage({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _HomeImprovementsPageState createState() => _HomeImprovementsPageState();
 }
 
@@ -70,7 +71,7 @@ class _HomeImprovementsPageState extends State<HomeImprovementsPage> {
                     TextField(
                       controller: budgetController,
                       decoration: const InputDecoration(labelText: 'Budget'),
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     ),
                     const SizedBox(height: 10),
                     const Text('Priority'),
@@ -190,7 +191,7 @@ class _HomeImprovementsPageState extends State<HomeImprovementsPage> {
                     TextField(
                       controller: budgetController,
                       decoration: const InputDecoration(labelText: 'Budget'),
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     ),
                     const SizedBox(height: 10),
                     const Text('Priority'),

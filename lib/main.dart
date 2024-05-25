@@ -19,6 +19,7 @@ import 'selfcare.dart';
 import 'chores.dart';
 import 'onboarding.dart';
 import 'signup.dart';
+import 'login.dart';
 import 'profile_page.dart';
 
 int notificationCounter = 0;
@@ -68,10 +69,11 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => OnboardingScreen(),
+        '/': (context) => const OnboardingScreen(),
         '/home': (context) => const TaskManagerPage(),
         '/signup': (context) => SignUpScreen(),
-        '/profile': (context) => ProfilePage(),
+        '/login': (context) => const LoginScreen(),
+        '/profile': (context) => const ProfilePage(),
       },
     );
   }
@@ -124,7 +126,7 @@ class TaskManagerPage extends StatelessWidget {
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
-            DrawerHeader(
+            const DrawerHeader(
               decoration: BoxDecoration(
                 color: Colors.blue,
               ),
@@ -137,8 +139,8 @@ class TaskManagerPage extends StatelessWidget {
               ),
             ),
             ListTile(
-              leading: Icon(Icons.person),
-              title: Text('Profile'),
+              leading: const Icon(Icons.person),
+              title: const Text('Profile'),
               onTap: () {
                 Navigator.pushNamed(context, '/profile');
               },
@@ -171,7 +173,7 @@ class TaskManagerPage extends StatelessWidget {
         } else if (task['name'] == 'Daily Routine') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const RoutinePage()));
         } else if (task['name'] == 'Grocery Shopping') {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => GroceryPage(initialItems: [])));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const GroceryPage(initialItems: [])));
         } else if (task['name'] == 'Meal Planning') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => MealPlanningPage(addToGroceryList: (items) {
             // Logic to add items to grocery list

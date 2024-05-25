@@ -22,6 +22,7 @@ class MealPlanningPage extends StatefulWidget {
   const MealPlanningPage({super.key, required this.addToGroceryList});
 
   @override
+  // ignore: library_private_types_in_public_api
   _MealPlanningPageState createState() => _MealPlanningPageState();
 }
 
