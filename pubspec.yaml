@@ -12,13 +12,14 @@ dependencies:
   intl: ^0.17.0
   flutter_local_notifications: ^9.0.0
   timezone: ^0.8.0
-  android_intent_plus: ^2.0.0
+  reorderables: ^0.4.2
   url_launcher: ^6.0.20
   googleapis_auth: ^1.0.0
   permission_handler: ^10.0.0
   flutter_slidable: ^3.1.0
-  reorderables: ^0.4.2
-  fl_chart: ^0.36.0
+  fl_chart: ^0.68.0
+  intro_slider: ^4.2.1
+  shared_preferences: ^2.0.6
 
 dev_dependencies:
   flutter_test:
@@ -30,3 +31,9 @@ flutter:
 
   assets:
     - assets/images/logo.png
+    - assets/notepad_background.png  # Add the notepad background image
+
+  fonts:
+    - family: Shadows Into Light
+      fonts:
+        - asset: assets/fonts/ShadowsIntoLight-Regular.ttf  # Add the Shadows Into Light font

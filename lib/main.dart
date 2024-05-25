@@ -17,6 +17,9 @@ import 'petcare.dart';
 import 'gardening.dart';
 import 'selfcare.dart';
 import 'chores.dart';
+import 'onboarding.dart';
+import 'signup.dart';
+import 'profile_page.dart';
 
 int notificationCounter = 0;
 int generateNotificationId() {
@@ -63,7 +66,13 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.white,
         useMaterial3: true,
       ),
-      home: const TaskManagerPage(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => OnboardingScreen(),
+        '/home': (context) => const TaskManagerPage(),
+        '/signup': (context) => SignUpScreen(),
+        '/profile': (context) => ProfilePage(),
+      },
     );
   }
 }
@@ -99,13 +108,44 @@ class TaskManagerPage extends StatelessWidget {
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () {
-              // Add menu actions here
+          Builder(
+            builder: (context) {
+              return IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () {
+                  Scaffold.of(context).openEndDrawer(); // Open the end drawer
+                },
+              );
             },
           ),
         ],
+      ),
+      endDrawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: <Widget>[
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Colors.blue,
+              ),
+              child: Text(
+                'Menu',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.person),
+              title: Text('Profile'),
+              onTap: () {
+                Navigator.pushNamed(context, '/profile');
+              },
+            ),
+            // Add other menu items here
+          ],
+        ),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -131,7 +171,7 @@ class TaskManagerPage extends StatelessWidget {
         } else if (task['name'] == 'Daily Routine') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const RoutinePage()));
         } else if (task['name'] == 'Grocery Shopping') {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => GroceryShoppingPage(initialItems: [])));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => GroceryPage(initialItems: [])));
         } else if (task['name'] == 'Meal Planning') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => MealPlanningPage(addToGroceryList: (items) {
             // Logic to add items to grocery list
