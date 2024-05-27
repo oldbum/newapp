@@ -1,101 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:intro_slider/intro_slider.dart';
 
-class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
-
-  @override
-  // ignore: library_private_types_in_public_api
-  _OnboardingScreenState createState() => _OnboardingScreenState();
-}
-
-class _OnboardingScreenState extends State<OnboardingScreen> {
-  List<ContentConfig> slides = [];
-
-  @override
-  void initState() {
-    super.initState();
-    slides.add(
-      ContentConfig(
-        title: "Welcome to MyApp",
-        description: "Your one-stop solution for managing tasks efficiently.",
-        widgetDescription: Container(
-          height: 200,
-          width: double.infinity,
-          color: Colors.blueAccent,
-          child: const Center(
-            child: Text(
-              'Welcome',
-              style: TextStyle(color: Colors.white, fontSize: 24),
-            ),
-          ),
-        ),
-        backgroundColor: Colors.blueAccent,
-      ),
-    );
-    slides.add(
-      ContentConfig(
-        title: "Track Your Tasks",
-        description: "Easily track your daily tasks and stay organized.",
-        widgetDescription: Container(
-          height: 200,
-          width: double.infinity,
-          color: Colors.greenAccent,
-          child: const Center(
-            child: Text(
-              'Track Tasks',
-              style: TextStyle(color: Colors.white, fontSize: 24),
-            ),
-          ),
-        ),
-        backgroundColor: Colors.greenAccent,
-      ),
-    );
-    slides.add(
-      ContentConfig(
-        title: "Manage Your Groceries",
-        description: "Keep your grocery list handy and updated.",
-        widgetDescription: Container(
-          height: 200,
-          width: double.infinity,
-          color: Colors.orangeAccent,
-          child: const Center(
-            child: Text(
-              'Manage Groceries',
-              style: TextStyle(color: Colors.white, fontSize: 24),
-            ),
-          ),
-        ),
-        backgroundColor: Colors.orangeAccent,
-      ),
-    );
-    slides.add(
-      ContentConfig(
-        title: "Get Started",
-        description: "Create an account to sync your data across devices.",
-        widgetDescription: Container(
-          height: 200,
-          width: double.infinity,
-          color: Colors.purpleAccent,
-          child: const Center(
-            child: Text(
-              'Get Started',
-              style: TextStyle(color: Colors.white, fontSize: 24),
-            ),
-          ),
-        ),
-        backgroundColor: Colors.purpleAccent,
-      ),
-    );
-  }
-
+class OnboardingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IntroSlider(
-      listContentConfig: slides,
+      listContentConfig: _createSlides(),
       onDonePress: () {
-        Navigator.pushReplacementNamed(context, '/signup');
+        Navigator.pushReplacementNamed(context, '/home');
+      },
+      onSkipPress: () {
+        Navigator.pushReplacementNamed(context, '/home');
       },
     );
+  }
+
+  List<ContentConfig> _createSlides() {
+    return [
+      ContentConfig(
+        title: "Welcome to the App",
+        description: "This app will help you manage your daily tasks efficiently.",
+        backgroundColor: Colors.blue,
+        widgetTitle: Center(
+          child: Text(
+            "Welcome Image Placeholder",
+            style: TextStyle(fontSize: 24, color: Colors.white),
+          ),
+        ),
+      ),
+      ContentConfig(
+        title: "Track Your Tasks",
+        description: "Keep track of your daily tasks with ease.",
+        backgroundColor: Colors.green,
+        widgetTitle: Center(
+          child: Text(
+            "Tasks Image Placeholder",
+            style: TextStyle(fontSize: 24, color: Colors.white),
+          ),
+        ),
+      ),
+      ContentConfig(
+        title: "Stay Organized",
+        description: "Stay organized and achieve your goals.",
+        backgroundColor: Colors.red,
+        widgetTitle: Center(
+          child: Text(
+            "Organized Image Placeholder",
+            style: TextStyle(fontSize: 24, color: Colors.white),
+          ),
+        ),
+      ),
+    ];
   }
 }

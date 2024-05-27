@@ -19,7 +19,7 @@ dependencies:
   flutter_slidable: ^3.1.0
   fl_chart: ^0.68.0
   intro_slider: ^4.2.1
-  shared_preferences: ^2.0.6
+  shared_preferences: ^2.0.10
 
 dev_dependencies:
   flutter_test:
@@ -31,9 +31,9 @@ flutter:
 
   assets:
     - assets/images/logo.png
-    - assets/notepad_background.png  # Add the notepad background image
+    - assets/notepad_background.png  # Ensure the notepad background image is in the correct path
 
   fonts:
     - family: Shadows Into Light
       fonts:
-        - asset: assets/fonts/ShadowsIntoLight-Regular.ttf  # Add the Shadows Into Light font
+        - asset: assets/fonts/ShadowsIntoLight-Regular.ttf  # Ensure the font file is in the correct path

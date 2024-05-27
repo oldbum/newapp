@@ -3,7 +3,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:permission_handler/permission_handler.dart';
 import 'routine_page.dart';
-import 'loginsupercenter_page.dart';
 import 'finance_page.dart';
 import 'groceryshopping.dart';
 import 'mealplanning.dart';
@@ -18,9 +17,6 @@ import 'gardening.dart';
 import 'selfcare.dart';
 import 'chores.dart';
 import 'onboarding.dart';
-import 'signup.dart';
-import 'login.dart';
-import 'profile_page.dart';
 
 int notificationCounter = 0;
 int generateNotificationId() {
@@ -37,7 +33,8 @@ Future<void> main() async {
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
 Future<void> _initializeNotifications() async {
-  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
 
   const InitializationSettings initializationSettings = InitializationSettings(
     android: initializationSettingsAndroid,
@@ -69,11 +66,8 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const OnboardingScreen(),
+        '/': (context) => OnboardingScreen(),
         '/home': (context) => const TaskManagerPage(),
-        '/signup': (context) => SignUpScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/profile': (context) => const ProfilePage(),
       },
     );
   }
@@ -99,7 +93,6 @@ class TaskManagerPage extends StatelessWidget {
       {'name': 'Gardening', 'icon': Icons.grass},
       {'name': 'Self Care', 'icon': Icons.self_improvement},
       {'name': 'Chores', 'icon': Icons.cleaning_services},
-      {'name': 'Login Supercenter', 'icon': Icons.lock},
     ];
 
     return Scaffold(
@@ -126,7 +119,7 @@ class TaskManagerPage extends StatelessWidget {
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
-            const DrawerHeader(
+            DrawerHeader(
               decoration: BoxDecoration(
                 color: Colors.blue,
               ),
@@ -138,14 +131,6 @@ class TaskManagerPage extends StatelessWidget {
                 ),
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Profile'),
-              onTap: () {
-                Navigator.pushNamed(context, '/profile');
-              },
-            ),
-            // Add other menu items here
           ],
         ),
       ),
@@ -173,7 +158,7 @@ class TaskManagerPage extends StatelessWidget {
         } else if (task['name'] == 'Daily Routine') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const RoutinePage()));
         } else if (task['name'] == 'Grocery Shopping') {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const GroceryPage(initialItems: [])));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => GroceryPage(initialItems: [])));
         } else if (task['name'] == 'Meal Planning') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => MealPlanningPage(addToGroceryList: (items) {
             // Logic to add items to grocery list
@@ -198,8 +183,6 @@ class TaskManagerPage extends StatelessWidget {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const PetCarePage()));
         } else if (task['name'] == 'Study') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const StudyPage()));
-        } else if (task['name'] == 'Login Supercenter') {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginSupercenterPage()));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${task['name']} was tapped. No specific page for this task.')));
         }
