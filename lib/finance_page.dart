@@ -53,10 +53,13 @@ class _FinancePageState extends State<FinancePage> {
 
   @override
   Widget build(BuildContext context) {
+    DateTime now = DateTime.now();
     List<Bill> sortedBills = [..._bills];
     sortedBills.sort((a, b) => _sortBills(a, b, _sortOption));
 
-    List<Bill> upcomingBills = sortedBills.where((bill) => !bill.isPaid).toList();
+    List<Bill> upcomingBills = sortedBills.where((bill) => !bill.isPaid && bill.dueDate.isAfter(now) && bill.dueDate.month == now.month).toList();
+    List<Bill> nextMonthBills = sortedBills.where((bill) => !bill.isPaid && bill.dueDate.isAfter(now) && bill.dueDate.month == now.month + 1).toList();
+    List<Bill> pastDueBills = sortedBills.where((bill) => !bill.isPaid && bill.dueDate.isBefore(now)).toList();
     List<Bill> paidBills = sortedBills.where((bill) => bill.isPaid).toList();
 
     return Scaffold(
@@ -124,14 +127,26 @@ class _FinancePageState extends State<FinancePage> {
             ),
             const SizedBox(height: 20),
             const Text(
-              'Paid Bills',
+              'Past Due Bills',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
             ),
             const SizedBox(height: 10),
             Expanded(
               child: ListView.builder(
-                itemCount: paidBills.length,
-                itemBuilder: (context, index) => buildBillCard(paidBills[index]),
+                itemCount: pastDueBills.length,
+                itemBuilder: (context, index) => buildBillCard(pastDueBills[index]),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Next Month Bills',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView.builder(
+                itemCount: nextMonthBills.length,
+                itemBuilder: (context, index) => buildBillCard(nextMonthBills[index]),
               ),
             ),
           ],
@@ -204,12 +219,37 @@ class _FinancePageState extends State<FinancePage> {
               bill.isPaid = !bill.isPaid;
               if (bill.isPaid) {
                 bill.paymentDate = DateTime.now();
+                // Move bill to payment history
+                _bills.remove(bill);
+                _bills.add(bill);
+                // Create a new bill for next month if recurrence is monthly
+                if (bill.recurrence == 'Monthly') {
+                  _createNextMonthBill(bill);
+                }
               }
             });
           },
         ),
       ),
     );
+  }
+
+  void _createNextMonthBill(Bill bill) {
+    final nextMonthDueDate = DateTime(bill.dueDate.year, bill.dueDate.month + 1, bill.dueDate.day);
+    final newBill = Bill(
+      name: bill.name,
+      amount: bill.amount,
+      dueDate: nextMonthDueDate,
+      paymentMethod: bill.paymentMethod,
+      billingPortalLink: bill.billingPortalLink,
+      recurrence: bill.recurrence,
+      notificationId: generateNotificationId(),
+      category: bill.category,
+    );
+    setState(() {
+      _bills.add(newBill);
+    });
+    scheduleNotification(newBill, _notificationDays.toInt());
   }
 
   Widget _buildBudgetChart() {
@@ -273,7 +313,7 @@ class _FinancePageState extends State<FinancePage> {
                 child: PieChart(
                   PieChartData(
                     sections: sections,
-                    sectionsSpace: 0,
+                    sectionsSpace: 2,
                     centerSpaceRadius: 40,
                     borderData: FlBorderData(show: false),
                   ),
@@ -539,7 +579,7 @@ class _FinancePageState extends State<FinancePage> {
   Future<void> scheduleNotification(Bill bill, int daysBefore) async {
     try {
       final tz.TZDateTime scheduledDate = tz.TZDateTime.from(
-        bill.dueDate.subtract(Duration(days: daysBefore)), 
+        bill.dueDate.subtract(Duration(days: daysBefore)),
         tz.local,
       );
 
@@ -580,61 +620,20 @@ class PaymentHistoryPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Payment History', style: TextStyle(fontFamily: 'Montserrat')),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () => _showFilterDialog(context),
-          ),
-        ],
       ),
       body: ListView.builder(
         itemCount: sortedBills.length,
         itemBuilder: (context, index) => ListTile(
           title: Text(sortedBills[index].name),
-          subtitle: Text('Paid: \$${sortedBills[index].amount.toStringAsFixed(2)} on ${DateFormat('yMMMd').format(sortedBills[index].paymentDate!)}'),
-        ),
-      ),
-    );
-  }
-
-  void _showFilterDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Sort Payments', style: TextStyle(fontFamily: 'Montserrat')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildRadioListTile(context, 'Sort by Name', SortOption.name),
-              _buildRadioListTile(context, 'Amount Ascending', SortOption.amountAscending),
-              _buildRadioListTile(context, 'Amount Descending', SortOption.amountDescending),
-              _buildRadioListTile(context, 'Due Date Soonest', SortOption.dueDateSoonest),
-              _buildRadioListTile(context, 'Due Date Latest', SortOption.dueDateLatest),
+              Text('Paid: \$${sortedBills[index].amount.toStringAsFixed(2)} on ${DateFormat('yMMMd').format(sortedBills[index].paymentDate!)}'),
+              Text('Original Due Date: ${DateFormat('yMMMd').format(sortedBills[index].dueDate)}'),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close', style: TextStyle(fontFamily: 'Montserrat')),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildRadioListTile(BuildContext context, String title, SortOption value) {
-    return RadioListTile<SortOption>(
-      title: Text(title, style: const TextStyle(fontFamily: 'Montserrat')),
-      value: value,
-      groupValue: sortOption,
-      onChanged: (SortOption? value) {
-        if (value != null) {
-          Navigator.pop(context);
-          // Handle state update in the parent or use a callback to update and rebuild with new sort option
-        }
-      },
+        ),
+      ),
     );
   }
 
@@ -719,20 +718,24 @@ class AnalyticsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Map<String, double> monthlyExpenses = {};
-    final Map<String, double> categoryExpenses = {};
+    final Map<String, Map<String, double>> categorizedMonthlyExpenses = {};
 
     for (var bill in bills) {
       final month = DateFormat('MMM yyyy').format(bill.dueDate);
       monthlyExpenses[month] = (monthlyExpenses[month] ?? 0) + bill.amount;
 
-      categoryExpenses[bill.category] = (categoryExpenses[bill.category] ?? 0) + bill.amount;
+      if (!categorizedMonthlyExpenses.containsKey(month)) {
+        categorizedMonthlyExpenses[month] = {};
+      }
+
+      categorizedMonthlyExpenses[month]![bill.category] = (categorizedMonthlyExpenses[month]![bill.category] ?? 0) + bill.amount;
     }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Analytics', style: TextStyle(fontFamily: 'Montserrat')),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -747,13 +750,20 @@ class AnalyticsPage extends StatelessWidget {
             )),
             const Divider(),
             const Text(
-              'Category Expenses',
+              'Categorized Monthly Expenses',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
             ),
-            ...categoryExpenses.entries.map((entry) => ListTile(
-              title: Text(entry.key),
-              trailing: Text('\$${entry.value.toStringAsFixed(2)}'),
-            )),
+            ...categorizedMonthlyExpenses.entries.expand((entry) {
+              return [
+                ListTile(
+                  title: Text(entry.key, style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                ...entry.value.entries.map((categoryEntry) => ListTile(
+                  title: Text(categoryEntry.key),
+                  trailing: Text('\$${categoryEntry.value.toStringAsFixed(2)}'),
+                )),
+              ];
+            }).toList(),
           ],
         ),
       ),
