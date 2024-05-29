@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
 import 'routine_page.dart';
 import 'finance_page.dart';
 import 'groceryshopping.dart';
@@ -17,6 +18,8 @@ import 'gardening.dart';
 import 'selfcare.dart';
 import 'chores.dart';
 import 'onboarding.dart';
+import 'notificationspage.dart';
+import 'billprovider.dart';
 
 int notificationCounter = 0;
 int generateNotificationId() {
@@ -57,18 +60,23 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Chore Score',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.white,
-        useMaterial3: true,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => BillProvider()),
+      ],
+      child: MaterialApp(
+        title: 'Chore Score',
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          scaffoldBackgroundColor: Colors.white,
+          useMaterial3: true,
+        ),
+        initialRoute: '/',
+        routes: {
+          '/': (context) => OnboardingScreen(),
+          '/home': (context) => const TaskManagerPage(),
+        },
       ),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => OnboardingScreen(),
-        '/home': (context) => const TaskManagerPage(),
-      },
     );
   }
 }
@@ -93,6 +101,7 @@ class TaskManagerPage extends StatelessWidget {
       {'name': 'Gardening', 'icon': Icons.grass},
       {'name': 'Self Care', 'icon': Icons.self_improvement},
       {'name': 'Chores', 'icon': Icons.cleaning_services},
+      {'name': 'Notifications', 'icon': Icons.notifications},
     ];
 
     return Scaffold(
@@ -149,7 +158,6 @@ class TaskManagerPage extends StatelessWidget {
     );
   }
 
-  // ignore: non_constant_identifier_names
   Widget TaskButton({required Map<String, dynamic> task, required BuildContext context}) {
     return ElevatedButton.icon(
       onPressed: () {
@@ -183,6 +191,8 @@ class TaskManagerPage extends StatelessWidget {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const PetCarePage()));
         } else if (task['name'] == 'Study') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const StudyPage()));
+        } else if (task['name'] == 'Notifications') {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsPage()));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${task['name']} was tapped. No specific page for this task.')));
         }

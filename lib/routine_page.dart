@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 import 'package:new_app/main.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'billprovider.dart';
 
 class RoutineTask {
   String name;
@@ -114,6 +116,8 @@ class _RoutinePageState extends State<RoutinePage> {
     List<String> recurrenceOptions = ['None', 'Daily', 'Weekly', 'Monthly'];
     IconData selectedIcon = Icons.check_circle_outline;
     int priority = 1;
+    DateTime? selectedNotificationDate;
+    TimeOfDay? selectedNotificationTime;
 
     showDialog(
       context: context,
@@ -183,6 +187,16 @@ class _RoutinePageState extends State<RoutinePage> {
                         });
                       },
                     ),
+                    const SizedBox(height: 16),
+                    ListTile(
+                      title: Text('Select Notification Date and Time'),
+                      subtitle: Text(
+                        selectedNotificationDate != null && selectedNotificationTime != null
+                            ? '${DateFormat('yMMMd').format(selectedNotificationDate!)} ${selectedNotificationTime!.format(context)}'
+                            : 'Not set',
+                      ),
+                      onTap: () => _selectNotificationDateTime(context, setState, selectedNotificationDate, selectedNotificationTime),
+                    ),
                   ],
                 ),
               );
@@ -191,7 +205,11 @@ class _RoutinePageState extends State<RoutinePage> {
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                Navigator.of(context).pop();
+                taskController.clear();
+                notesController.clear();
+              },
             ),
             TextButton(
               child: const Text('Add'),
@@ -209,7 +227,20 @@ class _RoutinePageState extends State<RoutinePage> {
                   setState(() {
                     _tasks.add(newTask);
                   });
-                  _scheduleNotification(newTask);
+                  if (selectedNotificationDate != null && selectedNotificationTime != null) {
+                    _scheduleNotification(newTask, selectedNotificationDate!, selectedNotificationTime!);
+                    final billProvider = Provider.of<BillProvider>(context, listen: false);
+                    billProvider.addBill(Bill(
+                      name: newTask.name,
+                      amount: 0.0,
+                      dueDate: selectedNotificationDate!,
+                      paymentMethod: '',
+                      billingPortalLink: '',
+                      recurrence: newTask.recurrence,
+                      notificationId: newTask.notificationId,
+                      category: 'Routine',
+                    ));
+                  }
                   _saveTasks();
                   Navigator.of(context).pop();
                 }
@@ -228,6 +259,8 @@ class _RoutinePageState extends State<RoutinePage> {
     List<String> recurrenceOptions = ['None', 'Daily', 'Weekly', 'Monthly'];
     IconData selectedIcon = task.icon;
     int priority = task.priority;
+    DateTime? selectedNotificationDate;
+    TimeOfDay? selectedNotificationTime;
 
     showDialog(
       context: context,
@@ -297,6 +330,16 @@ class _RoutinePageState extends State<RoutinePage> {
                         });
                       },
                     ),
+                    const SizedBox(height: 16),
+                    ListTile(
+                      title: Text('Select Notification Date and Time'),
+                      subtitle: Text(
+                        selectedNotificationDate != null && selectedNotificationTime != null
+                            ? '${DateFormat('yMMMd').format(selectedNotificationDate!)} ${selectedNotificationTime!.format(context)}'
+                            : 'Not set',
+                      ),
+                      onTap: () => _selectNotificationDateTime(context, setState, selectedNotificationDate, selectedNotificationTime),
+                    ),
                   ],
                 ),
               );
@@ -305,7 +348,9 @@ class _RoutinePageState extends State<RoutinePage> {
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
             ),
             TextButton(
               child: const Text('Update'),
@@ -335,8 +380,32 @@ class _RoutinePageState extends State<RoutinePage> {
     _saveTasks();
   }
 
-  void _scheduleNotification(RoutineTask task) async {
-    final tz.TZDateTime scheduledDate = tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5)); // Placeholder for the demo
+  Future<void> _selectNotificationDateTime(BuildContext context, StateSetter setState, DateTime? selectedDate, TimeOfDay? selectedTime) async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: selectedDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2101),
+    );
+
+    if (pickedDate != null) {
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: selectedTime ?? TimeOfDay.now(),
+      );
+
+      if (pickedTime != null) {
+        setState(() {
+          selectedDate = pickedDate;
+          selectedTime = pickedTime;
+        });
+      }
+    }
+  }
+
+  Future<void> _scheduleNotification(RoutineTask task, DateTime date, TimeOfDay time) async {
+    final tz.TZDateTime scheduledDate = tz.TZDateTime.from(date, tz.local)
+        .add(Duration(hours: time.hour, minutes: time.minute));
 
     var androidDetails = const AndroidNotificationDetails(
       'channelId',
@@ -347,6 +416,7 @@ class _RoutinePageState extends State<RoutinePage> {
     );
     var iOSDetails = const IOSNotificationDetails();
     var platformDetails = NotificationDetails(android: androidDetails, iOS: iOSDetails);
+
     await flutterLocalNotificationsPlugin.zonedSchedule(
       task.notificationId,
       '${task.name} Reminder',
@@ -357,14 +427,6 @@ class _RoutinePageState extends State<RoutinePage> {
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
-  }
-
-  void _resetTaskCompletion(RoutineTask task) {
-    setState(() {
-      task.isCompleted = false;
-      task.completedAt = null;
-    });
-    _saveTasks();
   }
 
   @override
@@ -404,6 +466,16 @@ class _RoutinePageState extends State<RoutinePage> {
                   IconButton(
                     icon: const Icon(Icons.edit),
                     onPressed: () => _editTask(task),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () {
+                      setState(() {
+                        _tasks.remove(task);
+                      });
+                      flutterLocalNotificationsPlugin.cancel(task.notificationId);
+                      _saveTasks();
+                    },
                   ),
                   Checkbox(
                     value: task.isCompleted,
