@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:permission_handler/permission_handler.dart';
-import 'package:provider/provider.dart';
 import 'routine_page.dart';
 import 'finance_page.dart';
 import 'groceryshopping.dart';
@@ -18,8 +17,9 @@ import 'gardening.dart';
 import 'selfcare.dart';
 import 'chores.dart';
 import 'onboarding.dart';
-import 'notificationspage.dart';
+import 'notificationspage.dart'; // Import the notifications page
 import 'billprovider.dart';
+import 'package:provider/provider.dart';
 
 int notificationCounter = 0;
 int generateNotificationId() {
@@ -30,7 +30,14 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _initializeNotifications();
   tz.initializeTimeZones();
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => BillProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -60,23 +67,18 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => BillProvider()),
-      ],
-      child: MaterialApp(
-        title: 'Chore Score',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          scaffoldBackgroundColor: Colors.white,
-          useMaterial3: true,
-        ),
-        initialRoute: '/',
-        routes: {
-          '/': (context) => OnboardingScreen(),
-          '/home': (context) => const TaskManagerPage(),
-        },
+    return MaterialApp(
+      title: 'Chore Score',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: Colors.white,
+        useMaterial3: true,
       ),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => OnboardingScreen(),
+        '/home': (context) => const TaskManagerPage(),
+      },
     );
   }
 }
@@ -101,7 +103,7 @@ class TaskManagerPage extends StatelessWidget {
       {'name': 'Gardening', 'icon': Icons.grass},
       {'name': 'Self Care', 'icon': Icons.self_improvement},
       {'name': 'Chores', 'icon': Icons.cleaning_services},
-      {'name': 'Notifications', 'icon': Icons.notifications},
+      {'name': 'Notifications', 'icon': Icons.notifications}, // Added notifications task
     ];
 
     return Scaffold(
@@ -158,13 +160,14 @@ class TaskManagerPage extends StatelessWidget {
     );
   }
 
+  // ignore: non_constant_identifier_names
   Widget TaskButton({required Map<String, dynamic> task, required BuildContext context}) {
     return ElevatedButton.icon(
       onPressed: () {
         if (task['name'] == 'Finance') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const FinancePage()));
         } else if (task['name'] == 'Daily Routine') {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const RoutinePage()));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => RoutinePage()));
         } else if (task['name'] == 'Grocery Shopping') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => GroceryPage(initialItems: [])));
         } else if (task['name'] == 'Meal Planning') {
@@ -191,8 +194,8 @@ class TaskManagerPage extends StatelessWidget {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const PetCarePage()));
         } else if (task['name'] == 'Study') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const StudyPage()));
-        } else if (task['name'] == 'Notifications') {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsPage()));
+        } else if (task['name'] == 'Notifications') { // Added condition for notifications task
+          Navigator.push(context, MaterialPageRoute(builder: (context) => NotificationsPage()));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${task['name']} was tapped. No specific page for this task.')));
         }

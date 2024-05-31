@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import 'package:new_app/main.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
-import 'billprovider.dart';
-import 'sort_option.dart';
+import 'package:new_app/billprovider.dart' as bill_provider;
+import 'package:new_app/sort_option.dart' as sort_option;
 
 class FinancePage extends StatefulWidget {
   const FinancePage({super.key});
@@ -15,8 +14,6 @@ class FinancePage extends StatefulWidget {
 }
 
 class _FinancePageState extends State<FinancePage> {
-  double _notificationDays = 3;
-
   Future<void> _launchURL(String url) async {
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url));
@@ -27,15 +24,16 @@ class _FinancePageState extends State<FinancePage> {
 
   @override
   Widget build(BuildContext context) {
-    final billProvider = Provider.of<BillProvider>(context);
-    final now = DateTime.now();
-    List<Bill> sortedBills = [...billProvider.bills];
-    sortedBills.sort((a, b) => _sortBills(a, b, billProvider.sortOption));
+    final provider = Provider.of<bill_provider.BillProvider>(context);
+    final List<bill_provider.Bill> sortedBills = provider.bills;
+    final sortOption = provider.sortOption;
 
-    List<Bill> upcomingBills = sortedBills.where((bill) => !bill.isPaid && bill.dueDate.isAfter(now) && bill.dueDate.month == now.month).toList();
-    List<Bill> nextMonthBills = sortedBills.where((bill) => !bill.isPaid && bill.dueDate.isAfter(now) && bill.dueDate.month == now.month + 1).toList();
-    List<Bill> pastDueBills = sortedBills.where((bill) => !bill.isPaid && bill.dueDate.isBefore(now)).toList();
-    List<Bill> paidBills = sortedBills.where((bill) => bill.isPaid).toList();
+    sortedBills.sort((a, b) => _sortBills(a, b, sortOption));
+
+    DateTime now = DateTime.now();
+    List<bill_provider.Bill> upcomingBills = sortedBills.where((bill) => !bill.isPaid && bill.dueDate.isAfter(now) && bill.dueDate.month == now.month).toList();
+    List<bill_provider.Bill> nextMonthBills = sortedBills.where((bill) => !bill.isPaid && bill.dueDate.isAfter(now) && bill.dueDate.month == now.month + 1).toList();
+    List<bill_provider.Bill> pastDueBills = sortedBills.where((bill) => !bill.isPaid && bill.dueDate.isBefore(now)).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -51,20 +49,21 @@ class _FinancePageState extends State<FinancePage> {
               context,
               MaterialPageRoute(
                 builder: (context) => PaymentHistoryPage(
-                  paidBills: paidBills,
+                  paidBills: provider.bills.where((bill) => bill.isPaid).toList(),
+                  sortOption: sortOption,
                 ),
               ),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.filter_list),
-            onPressed: () => _showFilterDialog(billProvider),
+            onPressed: () => _showFilterDialog(),
           ),
           IconButton(
             icon: const Icon(Icons.analytics),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => AnalyticsPage(bills: billProvider.bills)),
+              MaterialPageRoute(builder: (context) => AnalyticsPage(bills: provider.bills)),
             ),
           ),
         ],
@@ -79,7 +78,7 @@ class _FinancePageState extends State<FinancePage> {
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
             ),
             const SizedBox(height: 20),
-            _buildBudgetChart(billProvider.bills),
+            _buildBudgetChart(),
             const SizedBox(height: 20),
             const Text(
               'Upcoming Bills',
@@ -122,7 +121,7 @@ class _FinancePageState extends State<FinancePage> {
     );
   }
 
-  Widget buildBillCard(Bill bill) {
+  Widget buildBillCard(bill_provider.Bill bill) {
     IconData icon;
     Color color;
 
@@ -187,8 +186,8 @@ class _FinancePageState extends State<FinancePage> {
               if (bill.isPaid) {
                 bill.paymentDate = DateTime.now();
                 // Move bill to payment history
-                final billProvider = Provider.of<BillProvider>(context, listen: false);
-                billProvider.updateBill(bill);
+                final provider = Provider.of<bill_provider.BillProvider>(context, listen: false);
+                provider.updateBill(bill);
                 // Create a new bill for next month if recurrence is monthly
                 if (bill.recurrence == 'Monthly') {
                   _createNextMonthBill(bill);
@@ -201,9 +200,9 @@ class _FinancePageState extends State<FinancePage> {
     );
   }
 
-  void _createNextMonthBill(Bill bill) {
+  void _createNextMonthBill(bill_provider.Bill bill) {
     final nextMonthDueDate = DateTime(bill.dueDate.year, bill.dueDate.month + 1, bill.dueDate.day);
-    final newBill = Bill(
+    final newBill = bill_provider.Bill(
       name: bill.name,
       amount: bill.amount,
       dueDate: nextMonthDueDate,
@@ -212,15 +211,17 @@ class _FinancePageState extends State<FinancePage> {
       recurrence: bill.recurrence,
       notificationId: generateNotificationId(),
       category: bill.category,
+      isPaid: false,
     );
-    final billProvider = Provider.of<BillProvider>(context, listen: false);
-    billProvider.addBill(newBill);
+    final provider = Provider.of<bill_provider.BillProvider>(context, listen: false);
+    provider.addBill(newBill);
   }
 
-  Widget _buildBudgetChart(List<Bill> bills) {
+  Widget _buildBudgetChart() {
+    final provider = Provider.of<bill_provider.BillProvider>(context);
     Map<String, double> categoryExpenses = {};
 
-    for (var bill in bills) {
+    for (var bill in provider.bills) {
       if (categoryExpenses.containsKey(bill.category)) {
         categoryExpenses[bill.category] = categoryExpenses[bill.category]! + bill.amount;
       } else {
@@ -228,10 +229,11 @@ class _FinancePageState extends State<FinancePage> {
       }
     }
 
-    List<PieChartSectionData> sections = categoryExpenses.entries.map((entry) {
+    List<BarChartGroupData> barGroups = [];
+    categoryExpenses.forEach((category, amount) {
       Color color;
 
-      switch (entry.key) {
+      switch (category) {
         case 'Utilities':
           color = Colors.blue;
           break;
@@ -250,14 +252,19 @@ class _FinancePageState extends State<FinancePage> {
           break;
       }
 
-      return PieChartSectionData(
-        color: color,
-        value: entry.value,
-        title: '${entry.key} - \$${entry.value.toStringAsFixed(2)}',
-        radius: 50,
-        titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+      barGroups.add(
+        BarChartGroupData(
+          x: barGroups.length,
+          barRods: [
+            BarChartRodData(
+              toY: amount,
+              color: color,
+            )
+          ],
+          showingTooltipIndicators: [0],
+        ),
       );
-    }).toList();
+    });
 
     return AspectRatio(
       aspectRatio: 1.3,
@@ -275,11 +282,50 @@ class _FinancePageState extends State<FinancePage> {
               ),
               const SizedBox(height: 10),
               Expanded(
-                child: PieChart(
-                  PieChartData(
-                    sections: sections,
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 40,
+                child: BarChart(
+                  BarChartData(
+                    barGroups: barGroups,
+                    titlesData: FlTitlesData(
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (double value, TitleMeta meta) {
+                            const style = TextStyle(
+                              color: Color(0xff7589a2),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            );
+                            Widget text;
+                            switch (value.toInt()) {
+                              case 0:
+                                text = const Text('Utilities', style: style);
+                                break;
+                              case 1:
+                                text = const Text('Services', style: style);
+                                break;
+                              case 2:
+                                text = const Text('Rent', style: style);
+                                break;
+                              case 3:
+                                text = const Text('Subscription', style: style);
+                                break;
+                              case 4:
+                              default:
+                                text = const Text('Other', style: style);
+                                break;
+                            }
+                            return SideTitleWidget(
+                              axisSide: meta.axisSide,
+                              space: 16.0,
+                              child: text,
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(showTitles: true),
+                      ),
+                    ),
                     borderData: FlBorderData(show: false),
                   ),
                 ),
@@ -291,10 +337,11 @@ class _FinancePageState extends State<FinancePage> {
     );
   }
 
-  void _showFilterDialog(BillProvider billProvider) {
+  void _showFilterDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        final provider = Provider.of<bill_provider.BillProvider>(context);
         return AlertDialog(
           title: const Text('Filter and Sort Bills', style: TextStyle(fontFamily: 'Montserrat')),
           content: Column(
@@ -302,12 +349,12 @@ class _FinancePageState extends State<FinancePage> {
             children: [
               ListTile(
                 title: const Text('Sort by Name', style: TextStyle(fontFamily: 'Montserrat')),
-                leading: Radio<SortOption>(
-                  value: SortOption.name,
-                  groupValue: billProvider.sortOption,
-                  onChanged: (SortOption? value) {
+                leading: Radio(
+                  value: sort_option.SortOption.name,
+                  groupValue: provider.sortOption,
+                  onChanged: (sort_option.SortOption? value) {
                     if (value != null) {
-                      billProvider.setSortOption(value);
+                      provider.updateSortOption(value);
                       Navigator.pop(context);
                     }
                   },
@@ -315,12 +362,12 @@ class _FinancePageState extends State<FinancePage> {
               ),
               ListTile(
                 title: const Text('Amount Ascending', style: TextStyle(fontFamily: 'Montserrat')),
-                leading: Radio<SortOption>(
-                  value: SortOption.amountAscending,
-                  groupValue: billProvider.sortOption,
-                  onChanged: (SortOption? value) {
+                leading: Radio(
+                  value: sort_option.SortOption.amountAscending,
+                  groupValue: provider.sortOption,
+                  onChanged: (sort_option.SortOption? value) {
                     if (value != null) {
-                      billProvider.setSortOption(value);
+                      provider.updateSortOption(value);
                       Navigator.pop(context);
                     }
                   },
@@ -328,12 +375,12 @@ class _FinancePageState extends State<FinancePage> {
               ),
               ListTile(
                 title: const Text('Amount Descending', style: TextStyle(fontFamily: 'Montserrat')),
-                leading: Radio<SortOption>(
-                  value: SortOption.amountDescending,
-                  groupValue: billProvider.sortOption,
-                  onChanged: (SortOption? value) {
+                leading: Radio(
+                  value: sort_option.SortOption.amountDescending,
+                  groupValue: provider.sortOption,
+                  onChanged: (sort_option.SortOption? value) {
                     if (value != null) {
-                      billProvider.setSortOption(value);
+                      provider.updateSortOption(value);
                       Navigator.pop(context);
                     }
                   },
@@ -341,12 +388,12 @@ class _FinancePageState extends State<FinancePage> {
               ),
               ListTile(
                 title: const Text('Due Date Soonest', style: TextStyle(fontFamily: 'Montserrat')),
-                leading: Radio<SortOption>(
-                  value: SortOption.dueDateSoonest,
-                  groupValue: billProvider.sortOption,
-                  onChanged: (SortOption? value) {
+                leading: Radio(
+                  value: sort_option.SortOption.dueDateSoonest,
+                  groupValue: provider.sortOption,
+                  onChanged: (sort_option.SortOption? value) {
                     if (value != null) {
-                      billProvider.setSortOption(value);
+                      provider.updateSortOption(value);
                       Navigator.pop(context);
                     }
                   },
@@ -354,12 +401,12 @@ class _FinancePageState extends State<FinancePage> {
               ),
               ListTile(
                 title: const Text('Due Date Latest', style: TextStyle(fontFamily: 'Montserrat')),
-                leading: Radio<SortOption>(
-                  value: SortOption.dueDateLatest,
-                  groupValue: billProvider.sortOption,
-                  onChanged: (SortOption? value) {
+                leading: Radio(
+                  value: sort_option.SortOption.dueDateLatest,
+                  groupValue: provider.sortOption,
+                  onChanged: (sort_option.SortOption? value) {
                     if (value != null) {
-                      billProvider.setSortOption(value);
+                      provider.updateSortOption(value);
                       Navigator.pop(context);
                     }
                   },
@@ -378,17 +425,17 @@ class _FinancePageState extends State<FinancePage> {
     );
   }
 
-  int _sortBills(Bill a, Bill b, SortOption option) {
+  int _sortBills(bill_provider.Bill a, bill_provider.Bill b, sort_option.SortOption option) {
     switch (option) {
-      case SortOption.amountAscending:
+      case sort_option.SortOption.amountAscending:
         return a.amount.compareTo(b.amount);
-      case SortOption.amountDescending:
+      case sort_option.SortOption.amountDescending:
         return b.amount.compareTo(a.amount);
-      case SortOption.dueDateSoonest:
+      case sort_option.SortOption.dueDateSoonest:
         return a.dueDate.compareTo(b.dueDate);
-      case SortOption.dueDateLatest:
+      case sort_option.SortOption.dueDateLatest:
         return b.dueDate.compareTo(a.dueDate);
-      case SortOption.name:
+      case sort_option.SortOption.name:
       default:
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     }
@@ -404,6 +451,7 @@ class _FinancePageState extends State<FinancePage> {
     DateTime? dueDate = DateTime.now();
     List<String> categories = ['Utilities', 'Services', 'Rent', 'Subscription', 'Other'];
     String selectedCategory = categories.first;
+    DateTime? notificationDateTime;
 
     showDialog(
       context: context,
@@ -413,7 +461,7 @@ class _FinancePageState extends State<FinancePage> {
           content: StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) {
               return SingleChildScrollView(
-                child: Column(
+                child: ListBody(
                   children: <Widget>[
                     TextField(
                       controller: nameController,
@@ -435,11 +483,13 @@ class _FinancePageState extends State<FinancePage> {
                     DropdownButton<String>(
                       value: selectedRecurrence,
                       onChanged: (String? newValue) {
-                        setState(() {
-                          selectedRecurrence = newValue!;
-                        });
+                        if (newValue != null) {
+                          setState(() {
+                            selectedRecurrence = newValue;
+                          });
+                        }
                       },
-                      items: recurrenceOptions.map((String value) {
+                      items: recurrenceOptions.map<DropdownMenuItem<String>>((String value) {
                         return DropdownMenuItem<String>(
                           value: value,
                           child: Text(value),
@@ -449,9 +499,11 @@ class _FinancePageState extends State<FinancePage> {
                     DropdownButton<String>(
                       value: selectedCategory,
                       onChanged: (String? newValue) {
-                        setState(() {
-                          selectedCategory = newValue!;
-                        });
+                        if (newValue != null) {
+                          setState(() {
+                            selectedCategory = newValue;
+                          });
+                        }
                       },
                       items: categories.map<DropdownMenuItem<String>>((String value) {
                         return DropdownMenuItem<String>(
@@ -461,36 +513,52 @@ class _FinancePageState extends State<FinancePage> {
                       }).toList(),
                     ),
                     ListTile(
-                      title: Text('Select Due Date: ${dueDate != null ? DateFormat('yMMMd').format(dueDate!) : 'Not set'}'),
+                      title: Text(dueDate == null
+                          ? 'Select Due Date'
+                          : 'Due Date: ${DateFormat('yMMMd').format(dueDate!)}'),
                       onTap: () async {
-                        final DateTime? picked = await showDatePicker(
+                        final DateTime? pickedDate = await showDatePicker(
                           context: context,
-                          initialDate: dueDate ?? DateTime.now(),
-                          firstDate: DateTime(2000),
+                          initialDate: dueDate!,
+                          firstDate: DateTime.now(),
                           lastDate: DateTime(2101),
                         );
-                        if (picked != null && picked != dueDate) {
+                        if (pickedDate != null) {
                           setState(() {
-                            dueDate = picked;
+                            dueDate = pickedDate;
                           });
                         }
                       },
                     ),
-                    Slider(
-                      value: _notificationDays,
-                      min: 1,
-                      max: 30,
-                      divisions: 29,
-                      label: '${_notificationDays.round()} days before',
-                      onChanged: (double value) {
-                        setState(() {
-                          _notificationDays = value;
-                        });
+                    ListTile(
+                      title: Text(notificationDateTime == null
+                          ? 'Select Notification Time'
+                          : 'Notification Time: ${DateFormat('yMMMd').add_jm().format(notificationDateTime!)}'),
+                      onTap: () async {
+                        final DateTime? pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime(2101),
+                        );
+                        if (pickedDate != null) {
+                          final TimeOfDay? pickedTime = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.now(),
+                          );
+                          if (pickedTime != null) {
+                            setState(() {
+                              notificationDateTime = DateTime(
+                                pickedDate.year,
+                                pickedDate.month,
+                                pickedDate.day,
+                                pickedTime.hour,
+                                pickedTime.minute,
+                              );
+                            });
+                          }
+                        }
                       },
-                    ),
-                    Text(
-                      'Notify me ${_notificationDays.round()} days before due date',
-                      style: const TextStyle(fontSize: 16, fontFamily: 'Montserrat'),
                     ),
                   ],
                 ),
@@ -507,7 +575,7 @@ class _FinancePageState extends State<FinancePage> {
               onPressed: () {
                 final double? amount = double.tryParse(amountController.text);
                 if (amount != null && nameController.text.isNotEmpty && paymentMethodController.text.isNotEmpty) {
-                  final Bill newBill = Bill(
+                  final bill_provider.Bill newBill = bill_provider.Bill(
                     name: nameController.text,
                     amount: amount,
                     dueDate: dueDate!,
@@ -518,8 +586,16 @@ class _FinancePageState extends State<FinancePage> {
                     notificationId: generateNotificationId(),
                     category: selectedCategory,
                   );
-                  final billProvider = Provider.of<BillProvider>(context, listen: false);
-                  billProvider.addBill(newBill);
+                  final provider = Provider.of<bill_provider.BillProvider>(context, listen: false);
+                  provider.addBill(newBill);
+                  if (notificationDateTime != null) {
+                    _addNotificationToProvider(
+                      title: newBill.name,
+                      body: 'It\'s time to pay your bill: ${newBill.name}',
+                      dateTime: notificationDateTime!,
+                      notificationId: newBill.notificationId,
+                    );
+                  }
                   Navigator.of(context).pop();
                 }
               },
@@ -529,17 +605,34 @@ class _FinancePageState extends State<FinancePage> {
       },
     );
   }
+
+  void _addNotificationToProvider({
+    required String title,
+    required String body,
+    required DateTime dateTime,
+    required int notificationId,
+  }) {
+    final newNotification = bill_provider.MyNotification(
+      title: title,
+      body: body,
+      dateTime: dateTime,
+      notificationId: notificationId,
+    );
+    final provider = Provider.of<bill_provider.BillProvider>(context, listen: false);
+    provider.addNotification(newNotification);
+  }
 }
 
 class PaymentHistoryPage extends StatelessWidget {
-  final List<Bill> paidBills;
+  final List<bill_provider.Bill> paidBills;
+  final sort_option.SortOption sortOption;
 
-  const PaymentHistoryPage({super.key, required this.paidBills});
+  const PaymentHistoryPage({super.key, required this.paidBills, required this.sortOption});
 
   @override
   Widget build(BuildContext context) {
-    List<Bill> sortedBills = [...paidBills];
-    sortedBills.sort((a, b) => _sortBills(a, b, SortOption.dueDateLatest));
+    List<bill_provider.Bill> sortedBills = [...paidBills];
+    sortedBills.sort((a, b) => _sortBills(a, b, sortOption));
 
     return Scaffold(
       appBar: AppBar(
@@ -561,17 +654,17 @@ class PaymentHistoryPage extends StatelessWidget {
     );
   }
 
-  int _sortBills(Bill a, Bill b, SortOption option) {
+  int _sortBills(bill_provider.Bill a, bill_provider.Bill b, sort_option.SortOption option) {
     switch (option) {
-      case SortOption.amountAscending:
+      case sort_option.SortOption.amountAscending:
         return a.amount.compareTo(b.amount);
-      case SortOption.amountDescending:
+      case sort_option.SortOption.amountDescending:
         return b.amount.compareTo(a.amount);
-      case SortOption.dueDateSoonest:
+      case sort_option.SortOption.dueDateSoonest:
         return a.dueDate.compareTo(b.dueDate);
-      case SortOption.dueDateLatest:
+      case sort_option.SortOption.dueDateLatest:
         return b.dueDate.compareTo(a.dueDate);
-      case SortOption.name:
+      case sort_option.SortOption.name:
       default:
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     }
@@ -579,7 +672,7 @@ class PaymentHistoryPage extends StatelessWidget {
 }
 
 class AnalyticsPage extends StatelessWidget {
-  final List<Bill> bills;
+  final List<bill_provider.Bill> bills;
 
   const AnalyticsPage({super.key, required this.bills});
 
@@ -637,4 +730,8 @@ class AnalyticsPage extends StatelessWidget {
       ),
     );
   }
+}
+
+int generateNotificationId() {
+  return DateTime.now().millisecondsSinceEpoch.remainder(100000);
 }
