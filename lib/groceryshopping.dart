@@ -29,7 +29,6 @@ class GroceryPage extends StatefulWidget {
   const GroceryPage({super.key, required List initialItems});
 
   @override
-  // ignore: library_private_types_in_public_api
   _GroceryPageState createState() => _GroceryPageState();
 }
 
@@ -423,34 +422,22 @@ class _GroceryPageState extends State<GroceryPage> {
       ),
       body: Stack(
         children: [
-          CustomPaint(
-            painter: NotepadPainter(),
-            child: Container(),
+          ListView.builder(
+            itemCount: filteredItems.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return Container(
+                  padding: const EdgeInsets.only(top: 80.0), // Position "Grocery Shopping" just above the red line
+                  child: const Text('Grocery Shopping', style: TextStyle(fontFamily: 'Shadows Into Light', fontSize: 32)),
+                );
+              }
+              return _buildListItem(filteredItems[index - 1], index);
+            },
           ),
-          Column(
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 80.0), // Position "Grocery Shopping" just above the red line
-                child: Text('Grocery Shopping', style: TextStyle(fontFamily: 'Shadows Into Light', fontSize: 32)),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 20.0), // Adjust the top padding to start below the red line
-                  child: ReorderableListView(
-                    onReorder: (oldIndex, newIndex) {
-                      setState(() {
-                        if (newIndex > oldIndex) {
-                          newIndex -= 1;
-                        }
-                        final item = _items.removeAt(oldIndex);
-                        _items.insert(newIndex, item);
-                      });
-                    },
-                    children: filteredItems.asMap().map((index, item) => MapEntry(index, _buildListItem(item, index))).values.toList(),
-                  ),
-                ),
-              ),
-            ],
+          Positioned.fill(
+            child: CustomPaint(
+              painter: NotepadPainter(lineCount: filteredItems.length + 2),
+            ),
           ),
         ],
       ),
@@ -464,13 +451,13 @@ class _GroceryPageState extends State<GroceryPage> {
   Widget _buildListItem(GroceryItem item, int index) {
     return Container(
       key: ValueKey(item.name),
-      padding: const EdgeInsets.only(left: 50.0), // Align items with the lines
+      padding: const EdgeInsets.only(left: 30.0),
       child: Card(
         color: Colors.transparent,
         elevation: 0,
         child: ListTile(
           leading: Text(
-            '${index + 1}.',
+            '$index.',
             style: const TextStyle(fontFamily: 'Shadows Into Light', fontSize: 24, color: Colors.black),
           ),
           title: Column(
@@ -496,7 +483,7 @@ class _GroceryPageState extends State<GroceryPage> {
               ),
               IconButton(
                 icon: const Icon(Icons.delete),
-                onPressed: () => _deleteItem(index),
+                onPressed: () => _deleteItem(index - 1),
               ),
               Checkbox(
                 value: item.isCompleted,
@@ -520,6 +507,10 @@ class _GroceryPageState extends State<GroceryPage> {
 }
 
 class NotepadPainter extends CustomPainter {
+  final int lineCount;
+
+  NotepadPainter({required this.lineCount});
+
   @override
   void paint(Canvas canvas, Size size) {
     final Paint linePaint = Paint()
@@ -533,7 +524,8 @@ class NotepadPainter extends CustomPainter {
     const double lineSpacing = 60.0;
     const double leftMargin = 50.0;
 
-    for (double y = lineSpacing; y < size.height; y += lineSpacing) {
+    for (int i = 0; i < lineCount; i++) {
+      final double y = lineSpacing * (i + 1);
       canvas.drawLine(Offset(leftMargin, y), Offset(size.width, y), linePaint);
     }
 

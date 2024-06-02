@@ -70,8 +70,7 @@ class _FinancePageState extends State<FinancePage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListView(
           children: [
             const Text(
               'Budget Overview',
@@ -85,36 +84,22 @@ class _FinancePageState extends State<FinancePage> {
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
             ),
             const SizedBox(height: 10),
-            Expanded(
-              child: ListView.builder(
-                itemCount: upcomingBills.length,
-                itemBuilder: (context, index) => buildBillCard(upcomingBills[index]),
-              ),
-            ),
+            ...upcomingBills.map((bill) => buildBillCard(bill)).toList(),
             const SizedBox(height: 20),
             const Text(
               'Past Due Bills',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
             ),
             const SizedBox(height: 10),
-            Expanded(
-              child: ListView.builder(
-                itemCount: pastDueBills.length,
-                itemBuilder: (context, index) => buildBillCard(pastDueBills[index]),
-              ),
-            ),
+            ...pastDueBills.map((bill) => buildBillCard(bill)).toList(),
             const SizedBox(height: 20),
             const Text(
               'Next Month Bills',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
             ),
             const SizedBox(height: 10),
-            Expanded(
-              child: ListView.builder(
-                itemCount: nextMonthBills.length,
-                itemBuilder: (context, index) => buildBillCard(nextMonthBills[index]),
-              ),
-            ),
+            ...nextMonthBills.map((bill) => buildBillCard(bill)).toList(),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -218,124 +203,191 @@ class _FinancePageState extends State<FinancePage> {
   }
 
   Widget _buildBudgetChart() {
-    final provider = Provider.of<bill_provider.BillProvider>(context);
-    Map<String, double> categoryExpenses = {};
+  final provider = Provider.of<bill_provider.BillProvider>(context);
+  Map<String, double> categoryExpenses = {};
 
-    for (var bill in provider.bills) {
-      if (categoryExpenses.containsKey(bill.category)) {
-        categoryExpenses[bill.category] = categoryExpenses[bill.category]! + bill.amount;
-      } else {
-        categoryExpenses[bill.category] = bill.amount;
-      }
+  for (var bill in provider.bills) {
+    if (categoryExpenses.containsKey(bill.category)) {
+      categoryExpenses[bill.category] = categoryExpenses[bill.category]! + bill.amount;
+    } else {
+      categoryExpenses[bill.category] = bill.amount;
+    }
+  }
+
+  List<BarChartGroupData> barGroups = [];
+  int index = 0;
+  categoryExpenses.forEach((category, amount) {
+    Color color;
+
+    switch (category) {
+      case 'Utilities':
+        color = Colors.blue;
+        break;
+      case 'Services':
+        color = Colors.orange;
+        break;
+      case 'Rent':
+        color = Colors.green;
+        break;
+      case 'Subscription':
+        color = Colors.purple;
+        break;
+      case 'Other':
+      default:
+        color = Colors.grey;
+        break;
     }
 
-    List<BarChartGroupData> barGroups = [];
-    categoryExpenses.forEach((category, amount) {
-      Color color;
+    barGroups.add(
+      BarChartGroupData(
+        x: index,
+        barRods: [
+          BarChartRodData(
+            toY: amount,
+            color: color,
+            width: 15,
+            borderRadius: BorderRadius.circular(0),
+            backDrawRodData: BackgroundBarChartRodData(
+              show: true,
+              toY: 0,
+              color: Colors.grey[200],
+            ),
+          ),
+        ],
+        showingTooltipIndicators: [0],
+      ),
+    );
+    index++;
+  });
 
-      switch (category) {
-        case 'Utilities':
-          color = Colors.blue;
-          break;
-        case 'Services':
-          color = Colors.orange;
-          break;
-        case 'Rent':
-          color = Colors.green;
-          break;
-        case 'Subscription':
-          color = Colors.purple;
-          break;
-        case 'Other':
-        default:
-          color = Colors.grey;
-          break;
-      }
-
-      barGroups.add(
-        BarChartGroupData(
-          x: barGroups.length,
-          barRods: [
-            BarChartRodData(
-              toY: amount,
-              color: color,
-            )
-          ],
-          showingTooltipIndicators: [0],
-        ),
-      );
-    });
-
-    return AspectRatio(
-      aspectRatio: 1.3,
-      child: Card(
-        elevation: 5,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        color: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            children: [
-              const Text(
-                'Spending by Category',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: BarChart(
-                  BarChartData(
-                    barGroups: barGroups,
-                    titlesData: FlTitlesData(
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          getTitlesWidget: (double value, TitleMeta meta) {
-                            const style = TextStyle(
+  return AspectRatio(
+    aspectRatio: 1.3,
+    child: Card(
+      elevation: 5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            const Text(
+              'Spending by Category',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Montserrat'),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: BarChart(
+                BarChartData(
+                  barGroups: barGroups,
+                  titlesData: FlTitlesData(
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,  // Adjusted for better text display
+                        getTitlesWidget: (double value, TitleMeta meta) {
+                          const style = TextStyle(
+                            color: Color(0xff7589a2),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          );
+                          Widget text;
+                          switch (value.toInt()) {
+                            case 0:
+                              text = const Text('Utilities', style: style);
+                              break;
+                            case 1:
+                              text = const Text('Services', style: style);
+                              break;
+                            case 2:
+                              text = const Text('Rent', style: style);
+                              break;
+                            case 3:
+                              text = const Text('Subscription', style: style);
+                              break;
+                            case 4:
+                            default:
+                              text = const Text('Other', style: style);
+                              break;
+                          }
+                          return SideTitleWidget(
+                            axisSide: meta.axisSide,
+                            space: 16.0,
+                            child: text,
+                          );
+                        },
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,  // Adjusted for better text display
+                        interval: 500,  // Adjusted for better scaling
+                        getTitlesWidget: (double value, TitleMeta meta) {
+                          return Text(
+                            '\$${value.toInt()}',
+                            style: const TextStyle(
                               color: Color(0xff7589a2),
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
-                            );
-                            Widget text;
-                            switch (value.toInt()) {
-                              case 0:
-                                text = const Text('Utilities', style: style);
-                                break;
-                              case 1:
-                                text = const Text('Services', style: style);
-                                break;
-                              case 2:
-                                text = const Text('Rent', style: style);
-                                break;
-                              case 3:
-                                text = const Text('Subscription', style: style);
-                                break;
-                              case 4:
-                              default:
-                                text = const Text('Other', style: style);
-                                break;
-                            }
-                            return SideTitleWidget(
-                              axisSide: meta.axisSide,
-                              space: 16.0,
-                              child: text,
-                            );
-                          },
-                        ),
-                      ),
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(showTitles: true),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                    borderData: FlBorderData(show: false),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  gridData: FlGridData(show: true),
+                  barTouchData: BarTouchData(
+                    touchTooltipData: BarTouchTooltipData(
+                      tooltipPadding: const EdgeInsets.all(8),
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        String category;
+                        switch (group.x.toInt()) {
+                          case 0:
+                            category = 'Utilities';
+                            break;
+                          case 1:
+                            category = 'Services';
+                            break;
+                          case 2:
+                            category = 'Rent';
+                            break;
+                          case 3:
+                            category = 'Subscription';
+                            break;
+                          case 4:
+                          default:
+                            category = 'Other';
+                            break;
+                        }
+                        return BarTooltipItem(
+                          '$category\n',
+                          const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          children: <TextSpan>[
+                            TextSpan(
+                              text: '\$${rod.toY}',
+                              style: const TextStyle(
+                                color: Colors.yellow,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   void _showFilterDialog() {
     showDialog(

@@ -63,6 +63,14 @@ class BillProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void updateNotification(MyNotification oldNotification, MyNotification newNotification) {
+    final index = _notifications.indexWhere((n) => n.notificationId == oldNotification.notificationId);
+    if (index != -1) {
+      _notifications[index] = newNotification;
+      notifyListeners();
+    }
+  }
+
   void updateBill(Bill bill) {
     final index = _bills.indexWhere((b) => b.notificationId == bill.notificationId);
     if (index != -1) {

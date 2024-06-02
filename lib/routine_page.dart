@@ -127,6 +127,7 @@ class _RoutinePageState extends State<RoutinePage> {
     List<String> recurrenceOptions = ['None', 'Daily', 'Weekly', 'Monthly'];
     IconData selectedIcon = Icons.check_circle_outline;
     int priority = 1;
+    TimeOfDay? notificationTime;
     DateTime? notificationDateTime;
 
     showDialog(
@@ -152,6 +153,8 @@ class _RoutinePageState extends State<RoutinePage> {
                       onChanged: (String? newValue) {
                         setState(() {
                           selectedRecurrence = newValue!;
+                          notificationDateTime = null;
+                          notificationTime = null;
                         });
                       },
                       items: recurrenceOptions.map((String value) {
@@ -197,36 +200,54 @@ class _RoutinePageState extends State<RoutinePage> {
                         });
                       },
                     ),
-                    ListTile(
-                      title: Text(notificationDateTime == null
-                          ? 'Select Notification Time'
-                          : 'Notification Time: ${DateFormat('yMMMd').add_jm().format(notificationDateTime!)}'),
-                      onTap: () async {
-                        final DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: DateTime.now(),
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime(2101),
-                        );
-                        if (pickedDate != null) {
+                    if (selectedRecurrence == 'Daily')
+                      ListTile(
+                        title: Text(notificationTime == null
+                            ? 'Select Notification Time'
+                            : 'Notification Time: ${notificationTime!.format(context)}'),
+                        onTap: () async {
                           final TimeOfDay? pickedTime = await showTimePicker(
                             context: context,
                             initialTime: TimeOfDay.now(),
                           );
                           if (pickedTime != null) {
                             setState(() {
-                              notificationDateTime = DateTime(
-                                pickedDate.year,
-                                pickedDate.month,
-                                pickedDate.day,
-                                pickedTime.hour,
-                                pickedTime.minute,
-                              );
+                              notificationTime = pickedTime;
                             });
                           }
-                        }
-                      },
-                    ),
+                        },
+                      ),
+                    if (selectedRecurrence == 'Weekly' || selectedRecurrence == 'Monthly' || selectedRecurrence == 'None')
+                      ListTile(
+                        title: Text(notificationDateTime == null
+                            ? 'Select Notification Date and Time'
+                            : 'Notification: ${DateFormat('yMMMd').add_jm().format(notificationDateTime!)}'),
+                        onTap: () async {
+                          final DateTime? pickedDate = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime(2101),
+                          );
+                          if (pickedDate != null) {
+                            final TimeOfDay? pickedTime = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.now(),
+                            );
+                            if (pickedTime != null) {
+                              setState(() {
+                                notificationDateTime = DateTime(
+                                  pickedDate.year,
+                                  pickedDate.month,
+                                  pickedDate.day,
+                                  pickedTime.hour,
+                                  pickedTime.minute,
+                                );
+                              });
+                            }
+                          }
+                        },
+                      ),
                   ],
                 ),
               );
@@ -253,13 +274,31 @@ class _RoutinePageState extends State<RoutinePage> {
                   setState(() {
                     _tasks.add(newTask);
                   });
-                  if (notificationDateTime != null) {
+                  if (notificationTime != null && selectedRecurrence == 'Daily') {
+                    final now = DateTime.now();
+                    final dailyNotificationDateTime = DateTime(
+                      now.year,
+                      now.month,
+                      now.day,
+                      notificationTime!.hour,
+                      notificationTime!.minute,
+                    );
+                    _addNotificationToProvider(
+                      title: newTask.name,
+                      body: 'It\'s time to complete your task: ${newTask.name}',
+                      dateTime: dailyNotificationDateTime,
+                      notificationId: newTask.notificationId,
+                    );
+                    _scheduleDailyNotification(newTask, notificationTime!);
+                  }
+                  if (notificationDateTime != null && (selectedRecurrence == 'Weekly' || selectedRecurrence == 'Monthly' || selectedRecurrence == 'None')) {
                     _addNotificationToProvider(
                       title: newTask.name,
                       body: 'It\'s time to complete your task: ${newTask.name}',
                       dateTime: notificationDateTime!,
                       notificationId: newTask.notificationId,
                     );
+                    _scheduleRecurringNotification(newTask, notificationDateTime!);
                   }
                   _saveTasks();
                   Navigator.of(context).pop();
@@ -279,6 +318,7 @@ class _RoutinePageState extends State<RoutinePage> {
     List<String> recurrenceOptions = ['None', 'Daily', 'Weekly', 'Monthly'];
     IconData selectedIcon = task.icon;
     int priority = task.priority;
+    TimeOfDay? notificationTime;
     DateTime? notificationDateTime;
 
     showDialog(
@@ -304,6 +344,8 @@ class _RoutinePageState extends State<RoutinePage> {
                       onChanged: (String? newValue) {
                         setState(() {
                           selectedRecurrence = newValue!;
+                          notificationDateTime = null;
+                          notificationTime = null;
                         });
                       },
                       items: recurrenceOptions.map((String value) {
@@ -349,36 +391,54 @@ class _RoutinePageState extends State<RoutinePage> {
                         });
                       },
                     ),
-                    ListTile(
-                      title: Text(notificationDateTime == null
-                          ? 'Select Notification Time'
-                          : 'Notification Time: ${DateFormat('yMMMd').add_jm().format(notificationDateTime!)}'),
-                      onTap: () async {
-                        final DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: DateTime.now(),
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime(2101),
-                        );
-                        if (pickedDate != null) {
+                    if (selectedRecurrence == 'Daily')
+                      ListTile(
+                        title: Text(notificationTime == null
+                            ? 'Select Notification Time'
+                            : 'Notification Time: ${notificationTime!.format(context)}'),
+                        onTap: () async {
                           final TimeOfDay? pickedTime = await showTimePicker(
                             context: context,
                             initialTime: TimeOfDay.now(),
                           );
                           if (pickedTime != null) {
                             setState(() {
-                              notificationDateTime = DateTime(
-                                pickedDate.year,
-                                pickedDate.month,
-                                pickedDate.day,
-                                pickedTime.hour,
-                                pickedTime.minute,
-                              );
+                              notificationTime = pickedTime;
                             });
                           }
-                        }
-                      },
-                    ),
+                        },
+                      ),
+                    if (selectedRecurrence == 'Weekly' || selectedRecurrence == 'Monthly' || selectedRecurrence == 'None')
+                      ListTile(
+                        title: Text(notificationDateTime == null
+                            ? 'Select Notification Date and Time'
+                            : 'Notification: ${DateFormat('yMMMd').add_jm().format(notificationDateTime!)}'),
+                        onTap: () async {
+                          final DateTime? pickedDate = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime(2101),
+                          );
+                          if (pickedDate != null) {
+                            final TimeOfDay? pickedTime = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.now(),
+                            );
+                            if (pickedTime != null) {
+                              setState(() {
+                                notificationDateTime = DateTime(
+                                  pickedDate.year,
+                                  pickedDate.month,
+                                  pickedDate.day,
+                                  pickedTime.hour,
+                                  pickedTime.minute,
+                                );
+                              });
+                            }
+                          }
+                        },
+                      ),
                   ],
                 ),
               );
@@ -399,6 +459,20 @@ class _RoutinePageState extends State<RoutinePage> {
                   task.icon = selectedIcon;
                   task.priority = priority;
                 });
+                if (notificationTime != null && selectedRecurrence == 'Daily') {
+                  final now = DateTime.now();
+                  final dailyNotificationDateTime = DateTime(
+                    now.year,
+                    now.month,
+                    now.day,
+                    notificationTime!.hour,
+                    notificationTime!.minute,
+                  );
+                  _scheduleDailyNotification(task, notificationTime!);
+                }
+                if (notificationDateTime != null && (selectedRecurrence == 'Weekly' || selectedRecurrence == 'Monthly' || selectedRecurrence == 'None')) {
+                  _scheduleRecurringNotification(task, notificationDateTime!);
+                }
                 _saveTasks();
                 Navigator.of(context).pop();
               },
@@ -441,6 +515,61 @@ class _RoutinePageState extends State<RoutinePage> {
     );
   }
 
+  void _scheduleDailyNotification(RoutineTask task, TimeOfDay time) async {
+    final now = DateTime.now();
+    final tz.TZDateTime scheduledDate = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      time.hour,
+      time.minute,
+    );
+    var androidDetails = const AndroidNotificationDetails(
+      'channelId',
+      'channelName',
+      channelDescription: 'Notification channel for daily reminders',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+    var iOSDetails = const IOSNotificationDetails();
+    var platformDetails = NotificationDetails(android: androidDetails, iOS: iOSDetails);
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      task.notificationId,
+      '${task.name} Reminder',
+      'It\'s time to complete your daily task: ${task.name}',
+      scheduledDate,
+      platformDetails,
+      androidAllowWhileIdle: true,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+      payload: json.encode(task.toJson()),
+    );
+  }
+
+  void _scheduleRecurringNotification(RoutineTask task, DateTime dateTime) async {
+    var androidDetails = const AndroidNotificationDetails(
+      'channelId',
+      'channelName',
+      channelDescription: 'Notification channel for routine reminders',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+    var iOSDetails = const IOSNotificationDetails();
+    var platformDetails = NotificationDetails(android: androidDetails, iOS: iOSDetails);
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      task.notificationId,
+      '${task.name} Reminder',
+      'It\'s time to complete your ${task.recurrence.toLowerCase()} task: ${task.name}',
+      tz.TZDateTime.from(dateTime, tz.local),
+      platformDetails,
+      androidAllowWhileIdle: true,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+      payload: json.encode(task.toJson()),
+    );
+  }
+
   void _resetTaskCompletion(RoutineTask task) {
     setState(() {
       task.isCompleted = false;
@@ -464,50 +593,80 @@ class _RoutinePageState extends State<RoutinePage> {
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: _tasks.length,
-        itemBuilder: (context, index) {
-          final task = _tasks[index];
-          return Card(
-            color: task.isCompleted ? Colors.green[100] : Colors.red[100],
-            child: ListTile(
-              leading: Icon(task.icon),
-              title: Text(task.name),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: _tasks.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Priority: ${task.priority == 1 ? 'Low' : task.priority == 2 ? 'Medium' : 'High'}'),
-                  if (task.notes.isNotEmpty) Text(task.notes),
-                ],
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () => _editTask(task),
+                  Icon(
+                    Icons.task_alt,
+                    size: 100,
+                    color: Colors.grey[300],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () {
-                      setState(() {
-                        _tasks.remove(task);
-                      });
-                      _saveTasks();
-                    },
+                  const SizedBox(height: 20),
+                  Text(
+                    'No tasks added yet!',
+                    style: TextStyle(
+                      fontSize: 20,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  Checkbox(
-                    value: task.isCompleted,
-                    onChanged: (bool? value) {
-                      _toggleTaskCompletion(task);
-                    },
+                  const SizedBox(height: 10),
+                  Text(
+                    'Tap the + button to add a new task.',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                    ),
                   ),
                 ],
               ),
+            )
+          : ListView.builder(
+              itemCount: _tasks.length,
+              itemBuilder: (context, index) {
+                final task = _tasks[index];
+                return Card(
+                  color: task.isCompleted ? Colors.green[100] : Colors.red[100],
+                  child: ListTile(
+                    leading: Icon(task.icon),
+                    title: Text(task.name),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Priority: ${task.priority == 1 ? 'Low' : task.priority == 2 ? 'Medium' : 'High'}'),
+                        if (task.notes.isNotEmpty) Text(task.notes),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => _editTask(task),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            setState(() {
+                              _tasks.remove(task);
+                            });
+                            _saveTasks();
+                          },
+                        ),
+                        Checkbox(
+                          value: task.isCompleted,
+                          onChanged: (bool? value) {
+                            _toggleTaskCompletion(task);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addTask,
         child: const Icon(Icons.add),
