@@ -1,29 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:new_app/main.dart';
+import 'package:provider/provider.dart';
+import 'grocery_provider.dart';
+import 'grocery_item.dart';
 import 'package:timezone/timezone.dart' as tz;
-
-class GroceryItem {
-  String name;
-  bool isCompleted;
-  DateTime? completedAt;
-  String category;
-  String notes;
-  int notificationId;
-  int quantity;
-  String unit;
-
-  GroceryItem({
-    required this.name,
-    this.isCompleted = false,
-    this.completedAt,
-    required this.category,
-    this.notes = '',
-    required this.notificationId,
-    this.quantity = 1,
-    this.unit = 'pcs',
-  });
-}
 
 class GroceryPage extends StatefulWidget {
   const GroceryPage({super.key, required List initialItems});
@@ -33,7 +14,6 @@ class GroceryPage extends StatefulWidget {
 }
 
 class _GroceryPageState extends State<GroceryPage> {
-  final List<GroceryItem> _items = [];
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   String _filterCategory = 'All';
   String _sortOption = 'None';
@@ -157,9 +137,7 @@ class _GroceryPageState extends State<GroceryPage> {
                     quantity: quantity,
                     unit: selectedUnit,
                   );
-                  setState(() {
-                    _items.add(newItem);
-                  });
+                  Provider.of<GroceryProvider>(context, listen: false).addItem(newItem);
                   _scheduleNotification(newItem);
                   Navigator.of(context).pop();
                 }
@@ -257,14 +235,21 @@ class _GroceryPageState extends State<GroceryPage> {
             TextButton(
               child: const Text('Update', style: TextStyle(fontFamily: 'Shadows Into Light')),
               onPressed: () {
-                setState(() {
-                  item.name = nameController.text;
-                  item.quantity = int.parse(quantityController.text);
-                  item.unit = selectedUnit;
-                  item.notes = notesController.text;
-                  item.category = selectedCategory;
-                });
-                Navigator.of(context).pop();
+                if (nameController.text.isNotEmpty) {
+                  final updatedItem = GroceryItem(
+                    name: nameController.text,
+                    isCompleted: item.isCompleted,
+                    completedAt: item.completedAt,
+                    category: selectedCategory,
+                    notes: notesController.text,
+                    notificationId: item.notificationId,
+                    quantity: int.parse(quantityController.text),
+                    unit: selectedUnit,
+                  );
+                  Provider.of<GroceryProvider>(context, listen: false)
+                      .updateItem(Provider.of<GroceryProvider>(context, listen: false).items.indexOf(item), updatedItem);
+                  Navigator.of(context).pop();
+                }
               },
             ),
           ],
@@ -274,15 +259,11 @@ class _GroceryPageState extends State<GroceryPage> {
   }
 
   void _deleteItem(int index) {
-    setState(() {
-      _items.removeAt(index);
-    });
+    Provider.of<GroceryProvider>(context, listen: false).removeItem(index);
   }
 
   void _clearList() {
-    setState(() {
-      _items.clear();
-    });
+    Provider.of<GroceryProvider>(context, listen: false).clearItems();
   }
 
   void _scheduleNotification(GroceryItem item) async {
@@ -312,11 +293,11 @@ class _GroceryPageState extends State<GroceryPage> {
   void _sortItems() {
     setState(() {
       if (_sortOption == 'Alphabetically') {
-        _items.sort((a, b) => a.name.compareTo(b.name));
+        Provider.of<GroceryProvider>(context, listen: false).items.sort((a, b) => a.name.compareTo(b.name));
       } else if (_sortOption == 'By Category') {
-        _items.sort((a, b) => a.category.compareTo(b.category));
+        Provider.of<GroceryProvider>(context, listen: false).items.sort((a, b) => a.category.compareTo(b.category));
       } else if (_sortOption == 'By Completion Status') {
-        _items.sort((a, b) => a.isCompleted ? 1 : -1);
+        Provider.of<GroceryProvider>(context, listen: false).items.sort((a, b) => a.isCompleted ? 1 : -1);
       }
     });
   }
@@ -329,10 +310,6 @@ class _GroceryPageState extends State<GroceryPage> {
 
   @override
   Widget build(BuildContext context) {
-    List<GroceryItem> filteredItems = _filterCategory == 'All'
-        ? _items
-        : _items.where((item) => item.category == _filterCategory).toList();
-
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -420,26 +397,47 @@ class _GroceryPageState extends State<GroceryPage> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          ListView.builder(
-            itemCount: filteredItems.length + 1,
-            itemBuilder: (context, index) {
-              if (index == 0) {
-                return Container(
-                  padding: const EdgeInsets.only(top: 80.0), // Position "Grocery Shopping" just above the red line
-                  child: const Text('Grocery Shopping', style: TextStyle(fontFamily: 'Shadows Into Light', fontSize: 32)),
-                );
-              }
-              return _buildListItem(filteredItems[index - 1], index);
-            },
-          ),
-          Positioned.fill(
-            child: CustomPaint(
-              painter: NotepadPainter(lineCount: filteredItems.length + 2),
-            ),
-          ),
-        ],
+      body: Consumer<GroceryProvider>(
+        builder: (context, provider, child) {
+          List<GroceryItem> filteredItems = _filterCategory == 'All'
+              ? provider.items
+              : provider.items.where((item) => item.category == _filterCategory).toList();
+
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(0),
+                  itemCount: filteredItems.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return const SizedBox(height: 60); // Adjust the top padding
+                    }
+                    return CustomPaint(
+                      painter: NotepadPainter(lineCount: 1),
+                      child: _buildListItem(filteredItems[index - 1], index),
+                    );
+                  },
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                child: Container(
+                  color: Colors.transparent,
+                  child: const Padding(
+                    padding: EdgeInsets.only(top: 20.0), // Position "Grocery Shopping" just above the red line
+                    child: Text(
+                      'Grocery Shopping',
+                      style: TextStyle(fontFamily: 'Shadows Into Light', fontSize: 32),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addItem,
@@ -451,7 +449,7 @@ class _GroceryPageState extends State<GroceryPage> {
   Widget _buildListItem(GroceryItem item, int index) {
     return Container(
       key: ValueKey(item.name),
-      padding: const EdgeInsets.only(left: 30.0),
+      padding: const EdgeInsets.only(left: 50.0),
       child: Card(
         color: Colors.transparent,
         elevation: 0,
@@ -488,7 +486,19 @@ class _GroceryPageState extends State<GroceryPage> {
               Checkbox(
                 value: item.isCompleted,
                 onChanged: (bool? value) {
-                  _toggleItemCompletion(item);
+                  Provider.of<GroceryProvider>(context, listen: false).updateItem(
+                    Provider.of<GroceryProvider>(context, listen: false).items.indexOf(item),
+                    GroceryItem(
+                      name: item.name,
+                      isCompleted: value!,
+                      completedAt: value ? DateTime.now() : null,
+                      category: item.category,
+                      notes: item.notes,
+                      notificationId: item.notificationId,
+                      quantity: item.quantity,
+                      unit: item.unit,
+                    ),
+                  );
                 },
               ),
             ],
@@ -496,13 +506,6 @@ class _GroceryPageState extends State<GroceryPage> {
         ),
       ),
     );
-  }
-
-  void _toggleItemCompletion(GroceryItem item) {
-    setState(() {
-      item.isCompleted = !item.isCompleted;
-      item.completedAt = item.isCompleted ? DateTime.now() : null;
-    });
   }
 }
 
@@ -537,11 +540,3 @@ class NotepadPainter extends CustomPainter {
     return false;
   }
 }
-
-void main() => runApp(MaterialApp(
-  home: const GroceryPage(initialItems: [],),
-  theme: ThemeData(
-    primarySwatch: Colors.purple,
-    fontFamily: 'Shadows Into Light',
-  ),
-));

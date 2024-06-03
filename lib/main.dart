@@ -20,6 +20,9 @@ import 'onboarding.dart';
 import 'notificationspage.dart'; // Import the notifications page
 import 'billprovider.dart';
 import 'package:provider/provider.dart';
+import 'homeimprovementprovider.dart' as home_improvement_provider;
+import 'grocery_provider.dart';
+import 'recipe_provider.dart';
 
 int notificationCounter = 0;
 int generateNotificationId() {
@@ -34,6 +37,9 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => BillProvider()),
+        ChangeNotifierProvider(create: (_) => home_improvement_provider.HomeImprovementProvider()),
+        ChangeNotifierProvider(create: (_) => GroceryProvider()),
+        ChangeNotifierProvider(create: (_) => RecipeProvider()),
       ],
       child: const MyApp(),
     ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class WorkProject {
   String name;
@@ -19,6 +21,26 @@ class WorkProject {
     this.completedAt,
     required this.deadline,
   });
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'description': description,
+        'priority': priority,
+        'progress': progress,
+        'isCompleted': isCompleted,
+        'completedAt': completedAt?.toIso8601String(),
+        'deadline': deadline.toIso8601String(),
+      };
+
+  static WorkProject fromJson(Map<String, dynamic> json) => WorkProject(
+        name: json['name'],
+        description: json['description'],
+        priority: json['priority'],
+        progress: json['progress'],
+        isCompleted: json['isCompleted'],
+        completedAt: json['completedAt'] != null ? DateTime.parse(json['completedAt']) : null,
+        deadline: DateTime.parse(json['deadline']),
+      );
 }
 
 class WorkProjectsPage extends StatefulWidget {
@@ -31,6 +53,30 @@ class WorkProjectsPage extends StatefulWidget {
 class _WorkProjectsPageState extends State<WorkProjectsPage> {
   final List<WorkProject> _projects = [];
   final List<WorkProject> _projectHistory = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProjects();
+  }
+
+  Future<void> _saveProjects() async {
+    final prefs = await SharedPreferences.getInstance();
+    final projectList = _projects.map((project) => jsonEncode(project.toJson())).toList();
+    final projectHistoryList = _projectHistory.map((project) => jsonEncode(project.toJson())).toList();
+    await prefs.setStringList('projects', projectList);
+    await prefs.setStringList('projectHistory', projectHistoryList);
+  }
+
+  Future<void> _loadProjects() async {
+    final prefs = await SharedPreferences.getInstance();
+    final projectList = prefs.getStringList('projects') ?? [];
+    final projectHistoryList = prefs.getStringList('projectHistory') ?? [];
+    setState(() {
+      _projects.addAll(projectList.map((project) => WorkProject.fromJson(jsonDecode(project))).toList());
+      _projectHistory.addAll(projectHistoryList.map((project) => WorkProject.fromJson(jsonDecode(project))).toList());
+    });
+  }
 
   void _addProject() {
     final TextEditingController nameController = TextEditingController();
@@ -135,6 +181,7 @@ class _WorkProjectsPageState extends State<WorkProjectsPage> {
                       deadline: selectedDeadline ?? DateTime.now(),
                     ));
                   });
+                  _saveProjects();
                   Navigator.of(context).pop();
                 }
               },
@@ -246,6 +293,7 @@ class _WorkProjectsPageState extends State<WorkProjectsPage> {
                     project.progress = selectedProgress;
                     project.deadline = selectedDeadline!;
                   });
+                  _saveProjects();
                   Navigator.of(context).pop();
                 }
               },
@@ -277,6 +325,7 @@ class _WorkProjectsPageState extends State<WorkProjectsPage> {
                   _projects.remove(project);
                   _projectHistory.add(project);
                 });
+                _saveProjects();
                 Navigator.of(context).pop();
               },
             ),
@@ -296,6 +345,7 @@ class _WorkProjectsPageState extends State<WorkProjectsPage> {
         _projects.remove(project);
       }
     });
+    _saveProjects();
   }
 
   void _showProjectHistory() {
@@ -317,45 +367,89 @@ class _WorkProjectsPageState extends State<WorkProjectsPage> {
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: _projects.length,
-        itemBuilder: (context, index) {
-          final project = _projects[index];
-          return Card(
-            margin: const EdgeInsets.all(8.0),
-            child: ListTile(
-              title: Text(project.name),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Description: ${project.description}'),
-                  Text('Priority: ${project.priority}'),
-                  Text('Progress: ${project.progress}'),
-                  Text('Deadline: ${DateFormat('yMMMd').format(project.deadline)}'),
-                ],
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () => _editProject(project),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () => _deleteProject(project),
-                  ),
-                  Checkbox(
-                    value: project.isCompleted,
-                    onChanged: (bool? value) {
-                      _toggleProjectCompletion(project);
-                    },
-                  ),
-                ],
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.1,
+              child: Image.asset(
+                'assets/work_projects_background.png',
+                fit: BoxFit.cover,
               ),
             ),
-          );
-        },
+          ),
+          _projects.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.work,
+                        size: 100,
+                        color: Colors.blue.withOpacity(0.5),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'No Work Projects Yet!',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black.withOpacity(0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Tap the + button to add your first project.',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.black.withOpacity(0.5),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: _projects.length,
+                  itemBuilder: (context, index) {
+                    final project = _projects[index];
+                    return Card(
+                      margin: const EdgeInsets.all(8.0),
+                      child: ListTile(
+                        title: Text(project.name),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Description: ${project.description}'),
+                            Text('Priority: ${project.priority}'),
+                            Text('Progress: ${project.progress}'),
+                            Text('Deadline: ${DateFormat('yMMMd').format(project.deadline)}'),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit),
+                              onPressed: () => _editProject(project),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () => _deleteProject(project),
+                            ),
+                            Checkbox(
+                              value: project.isCompleted,
+                              onChanged: (bool? value) {
+                                _toggleProjectCompletion(project);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addProject,

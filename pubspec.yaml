@@ -19,8 +19,8 @@ dependencies:
   flutter_slidable: ^3.1.0
   fl_chart: ^0.68.0
   intro_slider: ^4.2.1
-  shared_preferences: ^2.0.10
-  provider: ^6.1.2
+  shared_preferences: ^2.0.15
+  provider: ^6.0.2
 
 dev_dependencies:
   flutter_test:
@@ -33,6 +33,10 @@ flutter:
   assets:
     - assets/images/logo.png
     - assets/notepad_background.png  # Ensure the notepad background image is in the correct path
+    - assets/recipe_background.png
+    - assets/work_projects_background.png
+    - assets/home_improvements_background.png
+
 
   fonts:
     - family: Shadows Into Light

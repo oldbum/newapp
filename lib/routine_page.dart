@@ -460,14 +460,6 @@ class _RoutinePageState extends State<RoutinePage> {
                   task.priority = priority;
                 });
                 if (notificationTime != null && selectedRecurrence == 'Daily') {
-                  final now = DateTime.now();
-                  final dailyNotificationDateTime = DateTime(
-                    now.year,
-                    now.month,
-                    now.day,
-                    notificationTime!.hour,
-                    notificationTime!.minute,
-                  );
                   _scheduleDailyNotification(task, notificationTime!);
                 }
                 if (notificationDateTime != null && (selectedRecurrence == 'Weekly' || selectedRecurrence == 'Monthly' || selectedRecurrence == 'None')) {
