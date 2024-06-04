@@ -253,6 +253,37 @@ class _HomeImprovementsPageState extends State<HomeImprovementsPage> {
     );
   }
 
+  void _deleteProject(home_improvement_provider.HomeImprovementProvider provider, int index) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Project'),
+          content: const Text('Are you sure you want to delete this project?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Delete'),
+              onPressed: () {
+                provider.deleteProject(index);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _toggleCompletion(home_improvement_provider.HomeImprovementProvider provider, int index, HomeImprovementProject project) {
+    final updatedProject = project.copyWith(isCompleted: true, completedAt: DateTime.now(), progress: 'Completed');
+    provider.updateProject(index, updatedProject);
+    provider.moveToHistory(index);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -263,7 +294,7 @@ class _HomeImprovementsPageState extends State<HomeImprovementsPage> {
             icon: const Icon(Icons.history),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => HomeImprovementsHistoryPage(history: Provider.of<home_improvement_provider.HomeImprovementProvider>(context, listen: false).projects)),
+              MaterialPageRoute(builder: (context) => HomeImprovementsHistoryPage(history: Provider.of<home_improvement_provider.HomeImprovementProvider>(context, listen: false).history)),
             ),
           ),
         ],
@@ -339,10 +370,16 @@ class _HomeImprovementsPageState extends State<HomeImprovementsPage> {
                                   icon: const Icon(Icons.edit),
                                   onPressed: () => _editProject(provider, index, project),
                                 ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete),
+                                  onPressed: () => _deleteProject(provider, index),
+                                ),
                                 Checkbox(
                                   value: project.isCompleted,
                                   onChanged: (bool? value) {
-                                    provider.updateProject(index, project.copyWith(isCompleted: value!));
+                                    if (value != null && value) {
+                                      _toggleCompletion(provider, index, project);
+                                    }
                                   },
                                 ),
                               ],

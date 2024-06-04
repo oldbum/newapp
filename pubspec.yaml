@@ -36,6 +36,7 @@ flutter:
     - assets/recipe_background.png
     - assets/work_projects_background.png
     - assets/home_improvements_background.png
+    - assets/travel_packing_background.png
 
 
   fonts:

@@ -80,8 +80,10 @@ class HomeImprovementProject {
 
 class HomeImprovementProvider with ChangeNotifier {
   List<HomeImprovementProject> _projects = [];
+  List<HomeImprovementProject> _history = [];
 
   List<HomeImprovementProject> get projects => _projects;
+  List<HomeImprovementProject> get history => _history;
 
   HomeImprovementProvider() {
     _loadProjects();
@@ -105,32 +107,35 @@ class HomeImprovementProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void moveToHistory(int index) {
+    final project = _projects.removeAt(index);
+    _history.add(project);
+    _saveProjects();
+    notifyListeners();
+  }
+
   void _saveProjects() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> encodedProjects = _projects.map((project) => jsonEncode(project.toJson())).toList();
+    List<String> encodedHistory = _history.map((project) => jsonEncode(project.toJson())).toList();
     prefs.setStringList('homeImprovementProjects', encodedProjects);
+    prefs.setStringList('homeImprovementHistory', encodedHistory);
   }
 
   void _loadProjects() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String>? encodedProjects = prefs.getStringList('homeImprovementProjects');
+    List<String>? encodedHistory = prefs.getStringList('homeImprovementHistory');
     if (encodedProjects != null) {
       _projects = encodedProjects.map((encodedProject) {
-        try {
-          Map<String, dynamic> projectMap = jsonDecode(encodedProject);
-          return HomeImprovementProject.fromJson(projectMap);
-        } catch (e) {
-          print('Error decoding project: $e');
-          return HomeImprovementProject(
-            name: 'Unknown',
-            description: 'Unknown',
-            priority: 'Low',
-            progress: 'Not Started',
-            deadline: null,
-            materials: [],
-            budget: 0.0,
-          );
-        }
+        Map<String, dynamic> projectMap = jsonDecode(encodedProject);
+        return HomeImprovementProject.fromJson(projectMap);
+      }).toList();
+    }
+    if (encodedHistory != null) {
+      _history = encodedHistory.map((encodedProject) {
+        Map<String, dynamic> projectMap = jsonDecode(encodedProject);
+        return HomeImprovementProject.fromJson(projectMap);
       }).toList();
     }
     notifyListeners();

@@ -17,12 +17,13 @@ import 'gardening.dart';
 import 'selfcare.dart';
 import 'chores.dart';
 import 'onboarding.dart';
-import 'notificationspage.dart'; // Import the notifications page
+import 'notificationspage.dart';
 import 'billprovider.dart';
 import 'package:provider/provider.dart';
 import 'homeimprovementprovider.dart' as home_improvement_provider;
 import 'grocery_provider.dart';
 import 'recipe_provider.dart';
+import 'travel_packing_provider.dart';
 
 int notificationCounter = 0;
 int generateNotificationId() {
@@ -40,6 +41,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => home_improvement_provider.HomeImprovementProvider()),
         ChangeNotifierProvider(create: (_) => GroceryProvider()),
         ChangeNotifierProvider(create: (_) => RecipeProvider()),
+        ChangeNotifierProvider(create: (_) => TravelPackingProvider()),
       ],
       child: const MyApp(),
     ),
@@ -109,7 +111,7 @@ class TaskManagerPage extends StatelessWidget {
       {'name': 'Gardening', 'icon': Icons.grass},
       {'name': 'Self Care', 'icon': Icons.self_improvement},
       {'name': 'Chores', 'icon': Icons.cleaning_services},
-      {'name': 'Notifications', 'icon': Icons.notifications}, // Added notifications task
+      {'name': 'Notifications', 'icon': Icons.notifications},
     ];
 
     return Scaffold(
@@ -125,7 +127,7 @@ class TaskManagerPage extends StatelessWidget {
               return IconButton(
                 icon: const Icon(Icons.menu),
                 onPressed: () {
-                  Scaffold.of(context).openEndDrawer(); // Open the end drawer
+                  Scaffold.of(context).openEndDrawer();
                 },
               );
             },
@@ -136,7 +138,7 @@ class TaskManagerPage extends StatelessWidget {
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
-            DrawerHeader(
+            const DrawerHeader(
               decoration: BoxDecoration(
                 color: Colors.blue,
               ),
@@ -155,8 +157,8 @@ class TaskManagerPage extends StatelessWidget {
         child: Column(
           children: <Widget>[
             Wrap(
-              spacing: 20, // Horizontal space between buttons
-              runSpacing: 20, // Vertical space between buttons
+              spacing: 20,
+              runSpacing: 20,
               alignment: WrapAlignment.spaceEvenly,
               children: tasks.map((task) => TaskButton(task: task, context: context)).toList(),
             ),
@@ -166,7 +168,6 @@ class TaskManagerPage extends StatelessWidget {
     );
   }
 
-  // ignore: non_constant_identifier_names
   Widget TaskButton({required Map<String, dynamic> task, required BuildContext context}) {
     return ElevatedButton.icon(
       onPressed: () {
@@ -200,7 +201,7 @@ class TaskManagerPage extends StatelessWidget {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const PetCarePage()));
         } else if (task['name'] == 'Study') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const StudyPage()));
-        } else if (task['name'] == 'Notifications') { // Added condition for notifications task
+        } else if (task['name'] == 'Notifications') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => NotificationsPage()));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${task['name']} was tapped. No specific page for this task.')));
@@ -208,7 +209,7 @@ class TaskManagerPage extends StatelessWidget {
       },
       style: ElevatedButton.styleFrom(
         foregroundColor: Colors.white,
-        backgroundColor: Colors.blue, // Text color
+        backgroundColor: Colors.blue,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       ),
       icon: Icon(task['icon']),
