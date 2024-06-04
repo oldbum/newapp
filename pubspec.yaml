@@ -21,6 +21,7 @@ dependencies:
   intro_slider: ^4.2.1
   shared_preferences: ^2.0.15
   provider: ^6.0.2
+  charts_flutter: ^0.12.0
 
 dev_dependencies:
   flutter_test:
@@ -37,6 +38,9 @@ flutter:
     - assets/work_projects_background.png
     - assets/home_improvements_background.png
     - assets/travel_packing_background.png
+    - assets/routinebackground.png
+    - assets/eventbackground.png
+    
 
 
   fonts:

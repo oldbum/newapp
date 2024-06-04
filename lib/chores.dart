@@ -24,12 +24,21 @@ class ChoresPage extends StatefulWidget {
   const ChoresPage({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _ChoresPageState createState() => _ChoresPageState();
 }
 
 class _ChoresPageState extends State<ChoresPage> {
   final List<Chore> _chores = [];
+  final List<Map<String, String>> _suggestedChores = [
+    {'name': 'Clean the Fridge', 'frequency': 'Monthly'},
+    {'name': 'Clean the Oven', 'frequency': 'Monthly'},
+    {'name': 'Dust Ceiling Fans', 'frequency': 'Monthly'},
+    {'name': 'Change Air Filters', 'frequency': 'Monthly'},
+    {'name': 'Clean Windows', 'frequency': 'Monthly'},
+    {'name': 'Vacuum Under Furniture', 'frequency': 'Weekly'},
+    {'name': 'Mop Floors', 'frequency': 'Weekly'},
+  ];
+
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   @override
@@ -93,16 +102,7 @@ class _ChoresPageState extends State<ChoresPage> {
               onPressed: () {
                 if (nameController.text.isNotEmpty) {
                   final int notificationId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
-                  DateTime dueDate;
-                  if (selectedFrequency == 'Daily') {
-                    dueDate = DateTime.now().add(const Duration(days: 1));
-                  } else if (selectedFrequency == 'Weekly') {
-                    dueDate = DateTime.now().add(const Duration(days: 7));
-                  } else if (selectedFrequency == 'Monthly') {
-                    dueDate = DateTime.now().add(const Duration(days: 30));
-                  } else {
-                    dueDate = DateTime.now().add(const Duration(days: 365));
-                  }
+                  DateTime dueDate = _calculateNextDueDate(selectedFrequency);
                   setState(() {
                     _chores.add(Chore(
                       name: nameController.text,
@@ -245,6 +245,50 @@ class _ChoresPageState extends State<ChoresPage> {
     });
   }
 
+  void _showSuggestedChores() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Suggested Chores'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: _suggestedChores.map((chore) {
+                return ListTile(
+                  title: Text(chore['name']!),
+                  subtitle: Text('Frequency: ${chore['frequency']}'),
+                  trailing: ElevatedButton(
+                    child: const Text('Add'),
+                    onPressed: () {
+                      final int notificationId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+                      DateTime dueDate = _calculateNextDueDate(chore['frequency']!);
+                      setState(() {
+                        _chores.add(Chore(
+                          name: chore['name']!,
+                          frequency: chore['frequency']!,
+                          dueDate: dueDate,
+                          notificationId: notificationId,
+                        ));
+                      });
+                      _scheduleNotification(notificationId, chore['name']!, dueDate);
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Close'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -255,31 +299,40 @@ class _ChoresPageState extends State<ChoresPage> {
             icon: const Icon(Icons.add),
             onPressed: _addChore,
           ),
+          IconButton(
+            icon: const Icon(Icons.lightbulb),
+            onPressed: _showSuggestedChores,
+          ),
         ],
       ),
       body: ListView.builder(
         itemCount: _chores.length,
         itemBuilder: (context, index) {
           final chore = _chores[index];
-          return CheckboxListTile(
-            title: Text(chore.name),
-            subtitle: Text('Due: ${DateFormat('yMMMd').format(chore.dueDate!)} - ${chore.frequency}'),
-            value: chore.isCompleted,
-            onChanged: (bool? value) {
-              _toggleChoreCompletion(chore);
-            },
-            secondary: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () => _editChore(chore),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () => _deleteChore(chore),
-                ),
-              ],
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            child: ListTile(
+              title: Text(chore.name),
+              subtitle: Text('Due: ${DateFormat('yMMMd').format(chore.dueDate!)} - ${chore.frequency}'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Checkbox(
+                    value: chore.isCompleted,
+                    onChanged: (bool? value) {
+                      _toggleChoreCompletion(chore);
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () => _editChore(chore),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () => _deleteChore(chore),
+                  ),
+                ],
+              ),
             ),
           );
         },

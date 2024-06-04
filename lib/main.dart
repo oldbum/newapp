@@ -9,16 +9,15 @@ import 'mealplanning.dart';
 import 'workprojects.dart';
 import 'home_improvement.dart';
 import 'travelpacking.dart';
-import 'eventplanning.dart';
+import 'event_planning_page.dart';
 import 'healthwellness.dart';
-import 'study.dart';
-import 'petcare.dart';
-import 'gardening.dart';
 import 'selfcare.dart';
 import 'chores.dart';
 import 'onboarding.dart';
 import 'notificationspage.dart';
 import 'billprovider.dart';
+import 'event_planning_provider.dart';
+import 'loginsupercenter_page.dart';
 import 'package:provider/provider.dart';
 import 'homeimprovementprovider.dart' as home_improvement_provider;
 import 'grocery_provider.dart';
@@ -42,6 +41,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => GroceryProvider()),
         ChangeNotifierProvider(create: (_) => RecipeProvider()),
         ChangeNotifierProvider(create: (_) => TravelPackingProvider()),
+        ChangeNotifierProvider(create: (_) => EventPlanningProvider()),
       ],
       child: const MyApp(),
     ),
@@ -106,12 +106,10 @@ class TaskManagerPage extends StatelessWidget {
       {'name': 'Travel/Packing', 'icon': Icons.card_travel},
       {'name': 'Event Planning', 'icon': Icons.event},
       {'name': 'Health and Wellness', 'icon': Icons.health_and_safety},
-      {'name': 'Study', 'icon': Icons.school},
-      {'name': 'Pet Care', 'icon': Icons.pets},
-      {'name': 'Gardening', 'icon': Icons.grass},
       {'name': 'Self Care', 'icon': Icons.self_improvement},
       {'name': 'Chores', 'icon': Icons.cleaning_services},
       {'name': 'Notifications', 'icon': Icons.notifications},
+      {'name': 'Login Supercenter', 'icon': Icons.login},
     ];
 
     return Scaffold(
@@ -191,18 +189,14 @@ class TaskManagerPage extends StatelessWidget {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const EventPlanningPage()));
         } else if (task['name'] == 'Health and Wellness') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const HealthAndWellnessPage()));
-        } else if (task['name'] == 'Gardening') {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const GardeningPage()));
         } else if (task['name'] == 'Chores') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const ChoresPage()));
         } else if (task['name'] == 'Self Care') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const SelfCarePage()));
-        } else if (task['name'] == 'Pet Care') {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const PetCarePage()));
-        } else if (task['name'] == 'Study') {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const StudyPage()));
         } else if (task['name'] == 'Notifications') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => NotificationsPage()));
+        } else if (task['name'] == 'Login Supercenter') {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginSupercenterPage()));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${task['name']} was tapped. No specific page for this task.')));
         }

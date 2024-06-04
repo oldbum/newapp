@@ -58,6 +58,8 @@ class RoutineTask {
 }
 
 class RoutinePage extends StatefulWidget {
+  const RoutinePage({Key? key}) : super(key: key);
+
   @override
   _RoutinePageState createState() => _RoutinePageState();
 }
@@ -82,7 +84,7 @@ class _RoutinePageState extends State<RoutinePage> {
     );
 
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-    tz.initializeTimeZones(); // Initialize timezone data
+    tz.initializeTimeZones();
   }
 
   Future<void> _requestPermissions() async {
@@ -93,8 +95,7 @@ class _RoutinePageState extends State<RoutinePage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> tasksJson = prefs.getStringList('tasks') ?? [];
     setState(() {
-      _tasks.clear();
-      _tasks.addAll(tasksJson.map((jsonString) => RoutineTask.fromJson(json.decode(jsonString))).toList());
+      _tasks = tasksJson.map((jsonString) => RoutineTask.fromJson(json.decode(jsonString))).toList();
     });
   }
 
@@ -301,7 +302,7 @@ class _RoutinePageState extends State<RoutinePage> {
                     _scheduleRecurringNotification(newTask, notificationDateTime!);
                   }
                   _saveTasks();
-                  Navigator.of(context).pop();
+                  if (mounted) Navigator.of(context).pop();
                 }
               },
             ),
@@ -466,7 +467,7 @@ class _RoutinePageState extends State<RoutinePage> {
                   _scheduleRecurringNotification(task, notificationDateTime!);
                 }
                 _saveTasks();
-                Navigator.of(context).pop();
+                if (mounted) Navigator.of(context).pop();
               },
             ),
           ],
@@ -484,7 +485,7 @@ class _RoutinePageState extends State<RoutinePage> {
   }
 
   void _scheduleNotification(RoutineTask task) async {
-    final tz.TZDateTime scheduledDate = tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5)); // Placeholder for the demo
+    final tz.TZDateTime scheduledDate = tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5));
 
     var androidDetails = const AndroidNotificationDetails(
       'channelId',
@@ -562,14 +563,6 @@ class _RoutinePageState extends State<RoutinePage> {
     );
   }
 
-  void _resetTaskCompletion(RoutineTask task) {
-    setState(() {
-      task.isCompleted = false;
-      task.completedAt = null;
-    });
-    _saveTasks();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -585,80 +578,93 @@ class _RoutinePageState extends State<RoutinePage> {
           ),
         ],
       ),
-      body: _tasks.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.task_alt,
-                    size: 100,
-                    color: Colors.grey[300],
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'No tasks added yet!',
-                    style: TextStyle(
-                      fontSize: 20,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Tap the + button to add a new task.',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.2,
+              child: Image.asset(
+                'assets/routinebackground.png', // Replace with your image path
+                fit: BoxFit.cover,
               ),
-            )
-          : ListView.builder(
-              itemCount: _tasks.length,
-              itemBuilder: (context, index) {
-                final task = _tasks[index];
-                return Card(
-                  color: task.isCompleted ? Colors.green[100] : Colors.red[100],
-                  child: ListTile(
-                    leading: Icon(task.icon),
-                    title: Text(task.name),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Priority: ${task.priority == 1 ? 'Low' : task.priority == 2 ? 'Medium' : 'High'}'),
-                        if (task.notes.isNotEmpty) Text(task.notes),
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => _editTask(task),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () {
-                            setState(() {
-                              _tasks.remove(task);
-                            });
-                            _saveTasks();
-                          },
-                        ),
-                        Checkbox(
-                          value: task.isCompleted,
-                          onChanged: (bool? value) {
-                            _toggleTaskCompletion(task);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
             ),
+          ),
+          _tasks.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.task_alt,
+                        size: 100,
+                        color: Colors.grey[300],
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'No tasks added yet!',
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Tap the + button to add a new task.',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: _tasks.length,
+                  itemBuilder: (context, index) {
+                    final task = _tasks[index];
+                    return Card(
+                      color: task.isCompleted ? Colors.green[100] : Colors.red[100],
+                      child: ListTile(
+                        leading: Icon(task.icon),
+                        title: Text(task.name),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Priority: ${task.priority == 1 ? 'Low' : task.priority == 2 ? 'Medium' : 'High'}'),
+                            if (task.notes.isNotEmpty) Text(task.notes),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit),
+                              onPressed: () => _editTask(task),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () {
+                                setState(() {
+                                  _tasks.remove(task);
+                                });
+                                _saveTasks();
+                              },
+                            ),
+                            Checkbox(
+                              value: task.isCompleted,
+                              onChanged: (bool? value) {
+                                _toggleTaskCompletion(task);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addTask,
         child: const Icon(Icons.add),
@@ -670,7 +676,7 @@ class _RoutinePageState extends State<RoutinePage> {
 class RoutineHistoryPage extends StatelessWidget {
   final List<RoutineTask> tasks;
 
-  const RoutineHistoryPage({super.key, required this.tasks});
+  const RoutineHistoryPage({Key? key, required this.tasks}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
