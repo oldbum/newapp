@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:new_app/grocery_item.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:permission_handler/permission_handler.dart';
 import 'routine_page.dart';
@@ -174,10 +175,21 @@ class TaskManagerPage extends StatelessWidget {
         } else if (task['name'] == 'Daily Routine') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => RoutinePage()));
         } else if (task['name'] == 'Grocery Shopping') {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => GroceryPage(initialItems: [])));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const GroceryPage(initialItems: [],)));
         } else if (task['name'] == 'Meal Planning') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => MealPlanningPage(addToGroceryList: (items) {
             // Logic to add items to grocery list
+            final groceryProvider = Provider.of<GroceryProvider>(context, listen: false);
+            items.forEach((item) {
+              final groceryItem = GroceryItem(
+                name: item,
+                category: 'Other',
+                notificationId: generateNotificationId(),
+                quantity: 1,
+                unit: 'pcs',
+              );
+              groceryProvider.addItem(groceryItem);
+            });
           })));
         } else if (task['name'] == 'Work Projects') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const WorkProjectsPage()));
