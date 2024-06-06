@@ -1,9 +1,13 @@
+import 'dart:convert';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'billprovider.dart';
 
 class HealthAndWellnessPage extends StatefulWidget {
   const HealthAndWellnessPage({super.key});
@@ -24,6 +28,7 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
     super.initState();
     tz.initializeTimeZones();
     _initializeNotifications();
+    _loadData();
   }
 
   Future<void> _initializeNotifications() async {
@@ -65,7 +70,7 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
   void _addPrescription() {
     final TextEditingController prescriptionController = TextEditingController();
     final TextEditingController dosageController = TextEditingController();
-    TimeOfDay selectedTime = TimeOfDay.now();
+    TimeOfDay? selectedTime;
 
     showDialog(
       context: context,
@@ -85,19 +90,24 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
                       controller: dosageController,
                       decoration: const InputDecoration(labelText: 'Dosage'),
                     ),
-                    TextButton(
-                      onPressed: () async {
-                        final TimeOfDay? picked = await showTimePicker(
-                          context: context,
-                          initialTime: selectedTime,
-                        );
-                        if (picked != null && picked != selectedTime) {
-                          setState(() {
-                            selectedTime = picked;
-                          });
-                        }
-                      },
-                      child: Text("Select Notification Time: ${selectedTime.format(context)}"),
+                    Row(
+                      children: [
+                        Text(selectedTime != null ? selectedTime!.format(context) : 'Select Time'),
+                        IconButton(
+                          icon: const Icon(Icons.access_time),
+                          onPressed: () async {
+                            final TimeOfDay? time = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.now(),
+                            );
+                            if (time != null) {
+                              setState(() {
+                                selectedTime = time;
+                              });
+                            }
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -112,24 +122,39 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
             TextButton(
               child: const Text('Add'),
               onPressed: () {
-                setState(() {
-                  final notificationId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
-                  _prescriptionLogs.add({
-                    'name': prescriptionController.text,
-                    'dosage': dosageController.text,
-                    'time': selectedTime.format(context),
-                    'taken': false,
-                    'notificationId': notificationId,
-                  });
+                if (selectedTime != null) {
+                  setState(() {
+                    final now = DateTime.now();
+                    final date = DateFormat('yMMMd').format(now);
+                    final notificationId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
 
-                  _scheduleDailyNotification(
-                    notificationId,
-                    'Prescription Reminder',
-                    'It\'s time to take your ${prescriptionController.text}',
-                    Time(selectedTime.hour, selectedTime.minute),
-                  );
-                });
-                Navigator.of(context).pop();
+                    _prescriptionLogs.add({
+                      'name': prescriptionController.text,
+                      'dosage': dosageController.text,
+                      'time': selectedTime!.format(context),
+                      'taken': false,
+                      'notificationId': notificationId,
+                    });
+
+                    final provider = Provider.of<BillProvider>(context, listen: false);
+                    provider.addNotification(MyNotification(
+                      title: 'Prescription Reminder',
+                      body: 'It\'s time to take your ${prescriptionController.text}',
+                      dateTime: _nextInstanceOfTime(Time(selectedTime!.hour, selectedTime!.minute)).toLocal(),
+                      notificationId: notificationId,
+                    ));
+
+                    _scheduleDailyNotification(
+                      notificationId,
+                      'Prescription Reminder',
+                      'It\'s time to take your ${prescriptionController.text}',
+                      Time(selectedTime!.hour, selectedTime!.minute),
+                    );
+
+                    _saveData();
+                  });
+                  Navigator.of(context).pop();
+                }
               },
             ),
           ],
@@ -165,19 +190,24 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
                       controller: dosageController,
                       decoration: const InputDecoration(labelText: 'Dosage'),
                     ),
-                    TextButton(
-                      onPressed: () async {
-                        final TimeOfDay? picked = await showTimePicker(
-                          context: context,
-                          initialTime: selectedTime,
-                        );
-                        if (picked != null && picked != selectedTime) {
-                          setState(() {
-                            selectedTime = picked;
-                          });
-                        }
-                      },
-                      child: Text("Select Notification Time: ${selectedTime.format(context)}"),
+                    Row(
+                      children: [
+                        Text(selectedTime.format(context)),
+                        IconButton(
+                          icon: const Icon(Icons.access_time),
+                          onPressed: () async {
+                            final TimeOfDay? time = await showTimePicker(
+                              context: context,
+                              initialTime: selectedTime,
+                            );
+                            if (time != null) {
+                              setState(() {
+                                selectedTime = time;
+                              });
+                            }
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -202,6 +232,22 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
                     Time(selectedTime.hour, selectedTime.minute),
                   );
 
+                  final provider = Provider.of<BillProvider>(context, listen: false);
+                  provider.updateNotification(
+                    MyNotification(
+                      title: 'Prescription Reminder',
+                      body: 'It\'s time to take your ${prescriptionController.text}',
+                      dateTime: _nextInstanceOfTime(Time(selectedTime.hour, selectedTime.minute)).toLocal(),
+                      notificationId: notificationId,
+                    ),
+                    MyNotification(
+                      title: 'Prescription Reminder',
+                      body: 'It\'s time to take your ${prescriptionController.text}',
+                      dateTime: _nextInstanceOfTime(Time(selectedTime.hour, selectedTime.minute)).toLocal(),
+                      notificationId: notificationId,
+                    ),
+                  );
+
                   _prescriptionLogs[index] = {
                     'name': prescriptionController.text,
                     'dosage': dosageController.text,
@@ -209,6 +255,8 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
                     'taken': log['taken'],
                     'notificationId': notificationId,
                   };
+
+                  _saveData();
                 });
                 Navigator.of(context).pop();
               },
@@ -223,7 +271,15 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
     setState(() {
       final log = _prescriptionLogs[index];
       flutterLocalNotificationsPlugin.cancel(log['notificationId']);
+      final provider = Provider.of<BillProvider>(context, listen: false);
+      provider.removeNotification(MyNotification(
+        title: 'Prescription Reminder',
+        body: 'It\'s time to take your ${log['name']}',
+        dateTime: DateTime.now(), // Assuming the notifications are scheduled for today.
+        notificationId: log['notificationId'],
+      ));
       _prescriptionLogs.removeAt(index);
+      _saveData();
     });
   }
 
@@ -231,26 +287,54 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
     setState(() {
       final now = DateTime.now();
       final date = DateFormat('yMMMd').format(now);
-      final prescription = _prescriptionLogs[index];
-
-      if (prescription['taken']) {
-        _history[date]?.removeWhere((log) =>
-            log['type'] == 'prescription' && log['name'] == prescription['name'] && log['time'] == prescription['time']);
-        prescription['taken'] = false;
+      final log = _prescriptionLogs[index];
+      if (log['taken']) {
+        _history[date]!.removeWhere((item) => item['type'] == 'prescription' && item['name'] == log['name']);
+        if (_history[date]!.isEmpty) {
+          _history.remove(date);
+        }
       } else {
         if (!_history.containsKey(date)) {
           _history[date] = [];
         }
         _history[date]!.add({
           'type': 'prescription',
-          'name': prescription['name'],
-          'dosage': prescription['dosage'],
+          'name': log['name'],
+          'dosage': log['dosage'],
           'time': DateFormat('HH:mm').format(now),
         });
-        prescription['taken'] = true;
       }
+      log['taken'] = !log['taken'];
+      _saveData();
     });
   }
+
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('exerciseLogs', _encodeList(_exerciseLogs));
+    await prefs.setString('mealLogs', _encodeList(_mealLogs));
+    await prefs.setString('prescriptionLogs', _encodeList(_prescriptionLogs));
+    await prefs.setString('history', _encodeMap(_history));
+  }
+
+  void _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _exerciseLogs.addAll(_decodeList(prefs.getString('exerciseLogs') ?? '[]'));
+      _mealLogs.addAll(_decodeList(prefs.getString('mealLogs') ?? '[]'));
+      _prescriptionLogs.addAll(_decodeList(prefs.getString('prescriptionLogs') ?? '[]'));
+      _history.addAll(_decodeMap(prefs.getString('history') ?? '{}'));
+    });
+  }
+
+  String _encodeList(List<Map<String, dynamic>> list) => json.encode(list);
+
+  List<Map<String, dynamic>> _decodeList(String data) => List<Map<String, dynamic>>.from(json.decode(data));
+
+  String _encodeMap(Map<String, List<Map<String, dynamic>>> map) => json.encode(map);
+
+  Map<String, List<Map<String, dynamic>>> _decodeMap(String data) =>
+      Map<String, List<Map<String, dynamic>>>.from(json.decode(data).map((k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v))));
 
   void _addExerciseLog() {
     final TextEditingController exerciseController = TextEditingController();
@@ -312,6 +396,7 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
                     'intensity': intensityController.text,
                     'time': DateFormat('HH:mm').format(now),
                   });
+                  _saveData();
                 });
                 Navigator.of(context).pop();
               },
@@ -371,6 +456,7 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
                     'intensity': intensityController.text,
                     'date': log['date'],
                   };
+                  _saveData();
                 });
                 Navigator.of(context).pop();
               },
@@ -384,6 +470,7 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
   void _deleteExerciseLog(int index) {
     setState(() {
       _exerciseLogs.removeAt(index);
+      _saveData();
     });
   }
 
@@ -440,6 +527,7 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
                     'calories': int.parse(caloriesController.text),
                     'time': DateFormat('HH:mm').format(now),
                   });
+                  _saveData();
                 });
                 Navigator.of(context).pop();
               },
@@ -493,6 +581,7 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
                     'calories': int.parse(caloriesController.text),
                     'date': log['date'],
                   };
+                  _saveData();
                 });
                 Navigator.of(context).pop();
               },
@@ -506,6 +595,7 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
   void _deleteMealLog(int index) {
     setState(() {
       _mealLogs.removeAt(index);
+      _saveData();
     });
   }
 
@@ -629,20 +719,17 @@ class HealthAndWellnessPageState extends State<HealthAndWellnessPage> {
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit),
-                                  onPressed: () => _editPrescription(index),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete),
-                                  onPressed: () => _deletePrescription(index),
-                                ),
                                 Checkbox(
                                   value: log['taken'],
-                                  onChanged: (bool? value) => _logPrescription(index),
+                                  onChanged: (_) => _logPrescription(index),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.delete),
+                                  onPressed: () => _deletePrescription(index),
                                 ),
                               ],
                             ),
+                            onTap: () => _editPrescription(index),
                           ),
                         );
                       }).toList(),
@@ -760,39 +847,37 @@ class HistoryPage extends StatelessWidget {
         children: history.entries.map((entry) {
           return ExpansionTile(
             title: Text(entry.key),
-            children: [
+            children: <Widget>[
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text('Prescriptions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                padding: EdgeInsets.only(left: 16.0),
+                child: Text('Prescriptions', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-              ...entry.value
-                  .where((log) => log['type'] == 'prescription')
-                  .map((log) => ListTile(
-                        title: Text('${log['name']} - ${log['dosage']}'),
-                        subtitle: Text('Time: ${log['time']}'),
-                      )),
-              const Divider(),
+              ...entry.value.where((log) => log['type'] == 'prescription').map((log) {
+                return ListTile(
+                  title: Text('${log['name']} - ${log['dosage']}'),
+                  subtitle: Text('Time: ${log['time']}'),
+                );
+              }).toList(),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text('Exercises', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                padding: EdgeInsets.only(left: 16.0),
+                child: Text('Exercises', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-              ...entry.value
-                  .where((log) => log['type'] == 'exercise')
-                  .map((log) => ListTile(
-                        title: Text('${log['exercise']} - ${log['duration']} mins'),
-                        subtitle: Text('Intensity: ${log['intensity']}'),
-                      )),
-              const Divider(),
+              ...entry.value.where((log) => log['type'] == 'exercise').map((log) {
+                return ListTile(
+                  title: Text('${log['exercise']} - ${log['duration']} mins'),
+                  subtitle: Text('Intensity: ${log['intensity']}'),
+                );
+              }).toList(),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text('Meals', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                padding: EdgeInsets.only(left: 16.0),
+                child: Text('Meals', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-              ...entry.value
-                  .where((log) => log['type'] == 'meal')
-                  .map((log) => ListTile(
-                        title: Text('${log['meal']} - ${log['calories']} kcal'),
-                        subtitle: Text('Time: ${log['time']}'),
-                      )),
+              ...entry.value.where((log) => log['type'] == 'meal').map((log) {
+                return ListTile(
+                  title: Text('${log['meal']} - ${log['calories']} kcal'),
+                  subtitle: Text('Time: ${log['time']}'),
+                );
+              }).toList(),
             ],
           );
         }).toList(),

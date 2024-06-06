@@ -312,6 +312,10 @@ class _GroceryPageState extends State<GroceryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: const Text(
+          'Shopping List',
+          style: TextStyle(fontFamily: 'Shadows Into Light', fontSize: 32),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -405,35 +409,21 @@ class _GroceryPageState extends State<GroceryPage> {
 
           return Stack(
             children: [
-              Positioned.fill(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(0),
-                  itemCount: filteredItems.length + 1,
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return const SizedBox(height: 60); // Adjust the top padding
-                    }
+              ListView.builder(
+                padding: const EdgeInsets.all(0),
+                itemCount: filteredItems.length + 15, // Adding more lines at the end for the notepad effect
+                itemBuilder: (context, index) {
+                  if (index >= filteredItems.length) {
                     return CustomPaint(
                       painter: NotepadPainter(lineCount: 1),
-                      child: _buildListItem(filteredItems[index - 1], index),
+                      child: Container(height: 100),
                     );
-                  },
-                ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                child: Container(
-                  color: Colors.transparent,
-                  child: const Padding(
-                    padding: EdgeInsets.only(top: 20.0), // Position "Grocery Shopping" just above the red line
-                    child: Text(
-                      'Grocery Shopping',
-                      style: TextStyle(fontFamily: 'Shadows Into Light', fontSize: 32),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
+                  }
+                  return CustomPaint(
+                    painter: NotepadPainter(lineCount: 1),
+                    child: _buildListItem(filteredItems[index], index + 1),
+                  );
+                },
               ),
             ],
           );
@@ -442,6 +432,7 @@ class _GroceryPageState extends State<GroceryPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: _addItem,
         child: const Icon(Icons.add),
+        backgroundColor: Colors.purple,
       ),
     );
   }
@@ -449,6 +440,7 @@ class _GroceryPageState extends State<GroceryPage> {
   Widget _buildListItem(GroceryItem item, int index) {
     return Container(
       key: ValueKey(item.name),
+      height: 100, // Each item takes up one line
       padding: const EdgeInsets.only(left: 50.0),
       child: Card(
         color: Colors.transparent,
@@ -462,7 +454,7 @@ class _GroceryPageState extends State<GroceryPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${item.name} (${item.quantity} ${item.unit})',
+                '${item.name} (${item.quantity} ${item.unit}) - ${item.category}',
                 style: const TextStyle(fontFamily: 'Shadows Into Light', fontSize: 20, color: Colors.black),
               ),
               if (item.notes.isNotEmpty)
@@ -524,7 +516,7 @@ class NotepadPainter extends CustomPainter {
       ..color = Colors.redAccent
       ..strokeWidth = 3;
 
-    const double lineSpacing = 60.0;
+    const double lineSpacing = 100.0;
     const double leftMargin = 50.0;
 
     for (int i = 0; i < lineCount; i++) {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:new_app/billprovider.dart';
+import 'billprovider.dart';
 
 class NotificationsPage extends StatelessWidget {
   @override

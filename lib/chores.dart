@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'billprovider.dart';
 
 class Chore {
   String name;
@@ -10,6 +14,7 @@ class Chore {
   DateTime? dueDate;
   bool isCompleted;
   int notificationId;
+  bool hasNotification;
 
   Chore({
     required this.name,
@@ -17,7 +22,26 @@ class Chore {
     this.dueDate,
     this.isCompleted = false,
     required this.notificationId,
+    this.hasNotification = false,
   });
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'frequency': frequency,
+        'dueDate': dueDate?.toIso8601String(),
+        'isCompleted': isCompleted,
+        'notificationId': notificationId,
+        'hasNotification': hasNotification,
+      };
+
+  factory Chore.fromJson(Map<String, dynamic> json) => Chore(
+        name: json['name'],
+        frequency: json['frequency'],
+        dueDate: json['dueDate'] != null ? DateTime.parse(json['dueDate']) : null,
+        isCompleted: json['isCompleted'],
+        notificationId: json['notificationId'],
+        hasNotification: json['hasNotification'],
+      );
 }
 
 class ChoresPage extends StatefulWidget {
@@ -40,12 +64,14 @@ class _ChoresPageState extends State<ChoresPage> {
   ];
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  DateTime? _selectedDateTime;
 
   @override
   void initState() {
     super.initState();
     tz.initializeTimeZones();
     _initializeNotifications();
+    _loadData();
   }
 
   Future<void> _initializeNotifications() async {
@@ -54,9 +80,24 @@ class _ChoresPageState extends State<ChoresPage> {
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final choresJson = _chores.map((chore) => json.encode(chore.toJson())).toList();
+    await prefs.setStringList('chores', choresJson);
+  }
+
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final choresJson = prefs.getStringList('chores') ?? [];
+    setState(() {
+      _chores.addAll(choresJson.map((jsonString) => Chore.fromJson(json.decode(jsonString))));
+    });
+  }
+
   void _addChore() {
     final TextEditingController nameController = TextEditingController();
     String selectedFrequency = 'Daily';
+    DateTime? selectedDateTime;
 
     showDialog(
       context: context,
@@ -87,6 +128,30 @@ class _ChoresPageState extends State<ChoresPage> {
                         );
                       }).toList(),
                     ),
+                    ListTile(
+                      title: Text(selectedDateTime != null ? DateFormat('yMMMd').add_jm().format(selectedDateTime!) : 'Set Notification'),
+                      onTap: () async {
+                        DateTime? pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime(2101),
+                        );
+
+                        if (pickedDate != null) {
+                          TimeOfDay? pickedTime = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.fromDateTime(DateTime.now()),
+                          );
+
+                          if (pickedTime != null) {
+                            setState(() {
+                              selectedDateTime = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
+                            });
+                          }
+                        }
+                      },
+                    ),
                   ],
                 ),
               );
@@ -109,9 +174,13 @@ class _ChoresPageState extends State<ChoresPage> {
                       frequency: selectedFrequency,
                       dueDate: dueDate,
                       notificationId: notificationId,
+                      hasNotification: selectedDateTime != null,
                     ));
                   });
-                  _scheduleNotification(notificationId, nameController.text, dueDate);
+                  if (selectedDateTime != null) {
+                    _scheduleNotification(context, notificationId, nameController.text, selectedDateTime!);
+                  }
+                  _saveData();
                   Navigator.of(context).pop();
                 }
               },
@@ -125,6 +194,7 @@ class _ChoresPageState extends State<ChoresPage> {
   void _editChore(Chore chore) {
     final TextEditingController nameController = TextEditingController(text: chore.name);
     String selectedFrequency = chore.frequency;
+    DateTime? selectedDateTime = chore.dueDate;
 
     showDialog(
       context: context,
@@ -155,6 +225,30 @@ class _ChoresPageState extends State<ChoresPage> {
                         );
                       }).toList(),
                     ),
+                    ListTile(
+                      title: Text(selectedDateTime != null ? DateFormat('yMMMd').add_jm().format(selectedDateTime!) : 'Set Notification'),
+                      onTap: () async {
+                        DateTime? pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime(2101),
+                        );
+
+                        if (pickedDate != null) {
+                          TimeOfDay? pickedTime = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.fromDateTime(DateTime.now()),
+                          );
+
+                          if (pickedTime != null) {
+                            setState(() {
+                              selectedDateTime = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
+                            });
+                          }
+                        }
+                      },
+                    ),
                   ],
                 ),
               );
@@ -172,8 +266,14 @@ class _ChoresPageState extends State<ChoresPage> {
                   chore.name = nameController.text;
                   chore.frequency = selectedFrequency;
                   chore.dueDate = _calculateNextDueDate(selectedFrequency);
+                  chore.hasNotification = selectedDateTime != null;
                 });
-                _updateNotification(chore.notificationId, chore.name, chore.dueDate!);
+                if (selectedDateTime != null) {
+                  _updateNotification(context, chore.notificationId, chore.name, selectedDateTime!);
+                } else {
+                  _cancelNotification(context, chore.notificationId);
+                }
+                _saveData();
                 Navigator.of(context).pop();
               },
             ),
@@ -187,7 +287,8 @@ class _ChoresPageState extends State<ChoresPage> {
     setState(() {
       _chores.remove(chore);
     });
-    _cancelNotification(chore.notificationId);
+    _cancelNotification(context, chore.notificationId);
+    _saveData();
   }
 
   DateTime _calculateNextDueDate(String frequency) {
@@ -202,7 +303,7 @@ class _ChoresPageState extends State<ChoresPage> {
     }
   }
 
-  void _scheduleNotification(int id, String title, DateTime dueDate) async {
+  void _scheduleNotification(BuildContext context, int id, String title, DateTime dueDate) async {
     final tz.TZDateTime scheduledDate = tz.TZDateTime.from(dueDate, tz.local);
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'chore_channel', // channelId
@@ -212,6 +313,15 @@ class _ChoresPageState extends State<ChoresPage> {
       priority: Priority.high,
     );
     const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+
+    final provider = Provider.of<BillProvider>(context, listen: false);
+    provider.addNotification(MyNotification(
+      title: 'Chore Reminder',
+      body: 'It\'s time to complete your chore: $title',
+      dateTime: scheduledDate,
+      notificationId: id,
+    ));
+
     await flutterLocalNotificationsPlugin.zonedSchedule(
       id,
       'Chore Reminder',
@@ -223,13 +333,21 @@ class _ChoresPageState extends State<ChoresPage> {
     );
   }
 
-  void _updateNotification(int id, String title, DateTime dueDate) async {
+  void _updateNotification(BuildContext context, int id, String title, DateTime dueDate) async {
     await flutterLocalNotificationsPlugin.cancel(id);
-    _scheduleNotification(id, title, dueDate);
+    _scheduleNotification(context, id, title, dueDate);
   }
 
-  void _cancelNotification(int id) async {
+  void _cancelNotification(BuildContext context, int id) async {
     await flutterLocalNotificationsPlugin.cancel(id);
+
+    final provider = Provider.of<BillProvider>(context, listen: false);
+    provider.removeNotification(MyNotification(
+      title: '',
+      body: '',
+      dateTime: DateTime.now(),
+      notificationId: id,
+    ));
   }
 
   void _toggleChoreCompletion(Chore chore) {
@@ -238,11 +356,14 @@ class _ChoresPageState extends State<ChoresPage> {
       if (chore.isCompleted) {
         final DateTime nextDueDate = _calculateNextDueDate(chore.frequency);
         chore.dueDate = nextDueDate;
-        _scheduleNotification(chore.notificationId, chore.name, nextDueDate);
+        if (chore.hasNotification) {
+          _scheduleNotification(context, chore.notificationId, chore.name, nextDueDate);
+        }
       } else {
-        _cancelNotification(chore.notificationId);
+        _cancelNotification(context, chore.notificationId);
       }
     });
+    _saveData();
   }
 
   void _showSuggestedChores() {
@@ -270,8 +391,9 @@ class _ChoresPageState extends State<ChoresPage> {
                           notificationId: notificationId,
                         ));
                       });
-                      _scheduleNotification(notificationId, chore['name']!, dueDate);
+                      _scheduleNotification(context, notificationId, chore['name']!, dueDate);
                       Navigator.of(context).pop();
+                      _saveData();
                     },
                   ),
                 );
@@ -296,46 +418,77 @@ class _ChoresPageState extends State<ChoresPage> {
         title: const Text('Chores'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _addChore,
-          ),
-          IconButton(
             icon: const Icon(Icons.lightbulb),
             onPressed: _showSuggestedChores,
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: _chores.length,
-        itemBuilder: (context, index) {
-          final chore = _chores[index];
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            child: ListTile(
-              title: Text(chore.name),
-              subtitle: Text('Due: ${DateFormat('yMMMd').format(chore.dueDate!)} - ${chore.frequency}'),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Checkbox(
-                    value: chore.isCompleted,
-                    onChanged: (bool? value) {
-                      _toggleChoreCompletion(chore);
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () => _editChore(chore),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () => _deleteChore(chore),
-                  ),
-                ],
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.2, // Adjust the opacity as needed
+              child: Image.asset(
+                'assets/chores.png',
+                fit: BoxFit.cover,
               ),
             ),
-          );
-        },
+          ),
+          _chores.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'No chores added yet!',
+                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Press the + to add a new chore',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: _chores.length,
+                  itemBuilder: (context, index) {
+                    final chore = _chores[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                      child: ListTile(
+                        title: Text(chore.name),
+                        subtitle: Text('Due: ${DateFormat('yMMMd').format(chore.dueDate!)} - ${chore.frequency}'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Checkbox(
+                              value: chore.isCompleted,
+                              onChanged: (bool? value) {
+                                _toggleChoreCompletion(chore);
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.edit),
+                              onPressed: () => _editChore(chore),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () => _deleteChore(chore),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addChore,
+        child: const Icon(Icons.add),
+        backgroundColor: Colors.purple.shade100, // Light purple color
       ),
     );
   }

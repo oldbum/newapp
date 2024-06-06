@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-// Adjust this import based on your project structure
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:reorderables/reorderables.dart';
 
 class LoginData {
   String website;
@@ -13,17 +15,57 @@ class LoginData {
     required this.password,
     this.email = '',
   });
+
+  // Convert a LoginData into a Map.
+  Map<String, dynamic> toJson() => {
+        'website': website,
+        'username': username,
+        'password': password,
+        'email': email,
+      };
+
+  // Convert a Map into a LoginData.
+  factory LoginData.fromJson(Map<String, dynamic> json) => LoginData(
+        website: json['website'],
+        username: json['username'],
+        password: json['password'],
+        email: json['email'] ?? '',
+      );
 }
+
 class LoginSupercenterPage extends StatefulWidget {
   const LoginSupercenterPage({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _LoginSupercenterPageState createState() => _LoginSupercenterPageState();
 }
 
 class _LoginSupercenterPageState extends State<LoginSupercenterPage> {
   List<LoginData> logins = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLogins();
+  }
+
+  Future<void> _loadLogins() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? loginsString = prefs.getString('logins');
+    if (loginsString != null) {
+      setState(() {
+        logins = (json.decode(loginsString) as List)
+            .map((data) => LoginData.fromJson(data))
+            .toList();
+      });
+    }
+  }
+
+  Future<void> _saveLogins() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String loginsString = json.encode(logins.map((login) => login.toJson()).toList());
+    prefs.setString('logins', loginsString);
+  }
 
   void _addOrEditLogin({LoginData? login, bool isEdit = false}) {
     final TextEditingController websiteController = TextEditingController(text: login?.website ?? '');
@@ -87,6 +129,7 @@ class _LoginSupercenterPageState extends State<LoginSupercenterPage> {
                     );
                   });
                 }
+                _saveLogins();
                 Navigator.of(context).pop();
               },
             ),
@@ -114,6 +157,7 @@ class _LoginSupercenterPageState extends State<LoginSupercenterPage> {
                 setState(() {
                   logins.remove(login);
                 });
+                _saveLogins();
                 Navigator.of(context).pop();
               },
             ),
@@ -129,47 +173,91 @@ class _LoginSupercenterPageState extends State<LoginSupercenterPage> {
       appBar: AppBar(
         title: const Text('Login Supercenter'),
       ),
-      body: ListView.builder(
-        itemCount: logins.length,
-        itemBuilder: (context, index) {
-          final login = logins[index];
-          return Card(
-            child: ExpansionTile(
-              title: Text(login.website),
-              subtitle: const Text('Tap to view details'),
-              children: <Widget>[
-                ListTile(
-                  title: Text('Username: ${login.username}'),
-                ),
-                ListTile(
-                  title: Text('Password: ${login.password}'),
-                ),
-                ListTile(
-                  title: Text('Email: ${login.email.isNotEmpty ? login.email : "Not provided"}'),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      child: const Text('Edit'),
-                      onPressed: () => _addOrEditLogin(login: login, isEdit: true),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      child: const Text('Delete'),
-                      onPressed: () => _deleteLogin(login),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                )
-              ],
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/loginbackground.png'),
+                fit: BoxFit.cover,
+                colorFilter: ColorFilter.mode(Colors.white54, BlendMode.lighten),
+              ),
             ),
-          );
-        },
+          ),
+          logins.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'No Logins Added Yet!',
+                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 20),
+                      const Icon(
+                        Icons.lock,
+                        size: 100,
+                        color: Color(0xFFD1C4E9), // Lighter purple color
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Press the + to add a new login',
+                        style: TextStyle(fontSize: 16, color: Colors.black54),
+                      ),
+                    ],
+                  ),
+                )
+              : ReorderableColumn(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  onReorder: (int oldIndex, int newIndex) {
+                    setState(() {
+                      final LoginData login = logins.removeAt(oldIndex);
+                      logins.insert(newIndex, login);
+                      _saveLogins();
+                    });
+                  },
+                  children: logins.map((login) {
+                    return Card(
+                      key: ValueKey(login),
+                      child: ExpansionTile(
+                        title: Text(login.website),
+                        subtitle: const Text('Tap to view details'),
+                        children: <Widget>[
+                          ListTile(
+                            title: Text('Username: ${login.username}'),
+                          ),
+                          ListTile(
+                            title: Text('Password: ${login.password}'),
+                          ),
+                          ListTile(
+                            title: Text('Email: ${login.email.isNotEmpty ? login.email : "Not provided"}'),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton(
+                                child: const Text('Edit'),
+                                onPressed: () => _addOrEditLogin(login: login, isEdit: true),
+                              ),
+                              const SizedBox(width: 8),
+                              TextButton(
+                                child: const Text('Delete'),
+                                onPressed: () => _deleteLogin(login),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                          )
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _addOrEditLogin(),
         child: const Icon(Icons.add),
+        backgroundColor: const Color(0xFFD1C4E9), // Lighter purple color
       ),
     );
   }

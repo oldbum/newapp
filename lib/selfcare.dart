@@ -383,7 +383,7 @@ class _SelfCarePageState extends State<SelfCarePage> {
                 ),
                 ListTile(
                   title: Text('Breathing Exercise'),
-                  subtitle: Text('1. Breathe in through your nose           2. Place your hands on your stomach to feel your belly rise                              3. Breathe out through your mouth for two to three times longer than you inhale                                                            4. Relax your shoulders and neck'),
+                  subtitle: Text('1. Breathe in through your nose\n2. Place your hands on your stomach to feel your belly rise\n3. Breathe out through your mouth for two to three times longer than you inhale\n4. Relax your shoulders and neck'),
                 ),
                 ListTile(
                   title: Text('Body Scan'),
@@ -423,98 +423,126 @@ class _SelfCarePageState extends State<SelfCarePage> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const Text('Daily Habits', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ..._habits.map((habit) => ListTile(
-                    title: Text(habit.name),
-                    leading: Checkbox(
-                      value: habit.isCompleted,
-                      onChanged: (bool? value) {
-                        _toggleHabitCompletion(habit);
-                      },
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => _editHabit(habit),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/selfcare.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(Colors.white54, BlendMode.lighten),
+          ),
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text('Daily Habits', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ..._habits.map((habit) => Card(
+                      elevation: 2.0,
+                      margin: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: ListTile(
+                        title: Text(habit.name),
+                        leading: Checkbox(
+                          value: habit.isCompleted,
+                          onChanged: (bool? value) {
+                            _toggleHabitCompletion(habit);
+                          },
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () => _deleteHabit(habit),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            IconButton(
+                              icon: const Icon(Icons.edit),
+                              onPressed: () => _editHabit(habit),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () => _deleteHabit(habit),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  )),
-              Center(
-                child: ElevatedButton(
-                  onPressed: _addHabit,
-                  child: const Text('Add Habit'),
+                      ),
+                    )),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: _addHabit,
+                    child: const Text('Add Habit'),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              const Text('Goals', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ..._goals.map((goal) => ListTile(
-                    title: Text(goal.name),
-                    subtitle: Text('Deadline: ${DateFormat('yMMMd').format(goal.deadline)}'),
-                    leading: Checkbox(
-                      value: goal.isCompleted,
-                      onChanged: (bool? value) {
-                        _toggleGoalCompletion(goal);
-                      },
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => _editGoal(goal),
+                const SizedBox(height: 20),
+                const Text('Goals', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ..._goals.map((goal) => Card(
+                      elevation: 2.0,
+                      margin: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: ListTile(
+                        title: Text(goal.name),
+                        subtitle: Text('Deadline: ${DateFormat('yMMMd').format(goal.deadline)}'),
+                        leading: Checkbox(
+                          value: goal.isCompleted,
+                          onChanged: (bool? value) {
+                            _toggleGoalCompletion(goal);
+                          },
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () => _deleteGoal(goal),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            IconButton(
+                              icon: const Icon(Icons.edit),
+                              onPressed: () => _editGoal(goal),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () => _deleteGoal(goal),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  )),
-              Center(
-                child: ElevatedButton(
-                  onPressed: _addGoal,
-                  child: const Text('Add Goal'),
+                      ),
+                    )),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: _addGoal,
+                    child: const Text('Add Goal'),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              const Text('Reflection Journal', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ..._reflections.map((reflection) => ListTile(
-                    title: Text(DateFormat('yMMMd').format(reflection.date)),
-                    subtitle: Text(reflection.content),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => _editReflection(reflection),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () => _deleteReflection(reflection),
-                        ),
-                      ],
-                    ),
-                  )),
-              Center(
-                child: ElevatedButton(
-                  onPressed: _addReflection,
-                  child: const Text('Add Reflection'),
+                const SizedBox(height: 20),
+                const Text('Reflection Journal', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ..._reflections.map((reflection) => Card(
+                      elevation: 2.0,
+                      margin: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: ExpansionTile(
+                        title: Text(DateFormat('yMMMd').format(reflection.date)),
+                        children: <Widget>[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                            child: Text(reflection.content),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: <Widget>[
+                              IconButton(
+                                icon: const Icon(Icons.edit),
+                                onPressed: () => _editReflection(reflection),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete),
+                                onPressed: () => _deleteReflection(reflection),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    )),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: _addReflection,
+                    child: const Text('Add Reflection'),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

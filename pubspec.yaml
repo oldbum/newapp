@@ -40,6 +40,9 @@ flutter:
     - assets/travel_packing_background.png
     - assets/routinebackground.png
     - assets/eventbackground.png
+    - assets/chores.png
+    - assets/loginbackground.png
+    - assets/selfcare.png
     
 
 
