@@ -18,34 +18,34 @@ class OnboardingScreen extends StatelessWidget {
   List<ContentConfig> _createSlides() {
     return [
       ContentConfig(
-        title: "Welcome to the App",
-        description: "This app will help you manage your daily tasks efficiently.",
+        title: "Welcome to Chore Score",
+        description: "This app will help you manage your day-to-day tasks efficiently.",
         backgroundColor: Colors.blue,
         widgetTitle: Center(
           child: Text(
-            "Welcome Image Placeholder",
+            "Welcome to Chore Score",
             style: TextStyle(fontSize: 24, color: Colors.white),
           ),
         ),
       ),
       ContentConfig(
         title: "Track Your Tasks",
-        description: "Keep track of your daily tasks with ease.",
+        description: "Keep track of your daily tasks and routines with ease.",
         backgroundColor: Colors.green,
         widgetTitle: Center(
           child: Text(
-            "Tasks Image Placeholder",
+            "Organize your day",
             style: TextStyle(fontSize: 24, color: Colors.white),
           ),
         ),
       ),
       ContentConfig(
         title: "Stay Organized",
-        description: "Stay organized and achieve your goals.",
+        description: "One place for all of your login information, receipes, and daily journal.",
         backgroundColor: Colors.red,
         widgetTitle: Center(
           child: Text(
-            "Organized Image Placeholder",
+            "Information storage",
             style: TextStyle(fontSize: 24, color: Colors.white),
           ),
         ),
