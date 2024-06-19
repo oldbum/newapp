@@ -19,6 +19,7 @@ import 'loginsupercenter_page.dart';
 import 'mealplanning.dart';
 import 'notificationspage.dart';
 import 'onboarding.dart';
+import 'pinauthenticationpage.dart';
 import 'recipe_provider.dart';
 import 'routine_page.dart';
 import 'selfcare.dart';
@@ -217,7 +218,21 @@ class TaskManagerPage extends StatelessWidget {
         } else if (task['name'] == 'Self Care') {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const SelfCarePage()));
         } else if (task['name'] == 'Login Supercenter') {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginSupercenterPage()));
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PinAuthenticationPage(
+                isSettingUp: false,
+              ),
+            ),
+          ).then((authenticated) {
+            if (authenticated == true) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginSupercenterPage()),
+              );
+            }
+          });
         } else {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${task['name']} was tapped. No specific page for this task.')));
         }

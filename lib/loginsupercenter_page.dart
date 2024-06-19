@@ -16,7 +16,6 @@ class LoginData {
     this.email = '',
   });
 
-  // Convert a LoginData into a Map.
   Map<String, dynamic> toJson() => {
         'website': website,
         'username': username,
@@ -24,7 +23,6 @@ class LoginData {
         'email': email,
       };
 
-  // Convert a Map into a LoginData.
   factory LoginData.fromJson(Map<String, dynamic> json) => LoginData(
         website: json['website'],
         username: json['username'],
